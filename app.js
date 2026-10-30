@@ -440,6 +440,7 @@ function idbSaveState(currentState) {
 
 async function initHighCapacityStorage() {
   try {
+    const urlProvidedKey = extractUrlApiKey();
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
     }
@@ -455,8 +456,17 @@ async function initHighCapacityStorage() {
           savedInIdb.currentStoreId || savedInIdb.stores[0].id,
         stores: savedInIdb.stores,
       };
+      if (urlProvidedKey) {
+        state.settings.apiKey = urlProvidedKey;
+        await idbSaveState(state);
+        showToast("已從專屬連結自動綁定 AI 金鑰！");
+      }
       renderApp();
     } else {
+      if (urlProvidedKey) {
+        state.settings.apiKey = urlProvidedKey;
+        showToast("已從專屬連結自動綁定 AI 金鑰！");
+      }
       // 首次升級：將現有 state 寫入大容量 IndexedDB，並釋放舊版 5MB LocalStorage 圖片佔用
       await idbSaveState(state);
       try {
@@ -466,6 +476,29 @@ async function initHighCapacityStorage() {
   } catch (err) {
     console.warn("IndexedDB 初始化備援:", err);
   }
+}
+
+function extractUrlApiKey() {
+  try {
+    if (typeof window === "undefined" || !window.location) return "";
+    const params = new URLSearchParams(window.location.search);
+    const key = (params.get("key") || params.get("apikey") || "").trim();
+    if (key) {
+      state.settings.apiKey = key;
+      params.delete("key");
+      params.delete("apikey");
+      const newSearch = params.toString();
+      const cleanUrl =
+        window.location.pathname +
+        (newSearch ? `?${newSearch}` : "") +
+        window.location.hash;
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, "", cleanUrl);
+      }
+      return key;
+    }
+  } catch (_) {}
+  return "";
 }
 
 function saveState() {
@@ -1450,6 +1483,26 @@ function bindEvents() {
     renderApp();
     showToast("設定已儲存");
   });
+
+  // 複製含 API Key 的專屬分享連結（讓其他手機點開自動寫入免重填）
+  document
+    .getElementById("btnCopyShareLinkWithKey")
+    .addEventListener("click", () => {
+      const key =
+        document.getElementById("inputApiKey").value.trim() ||
+        state.settings.apiKey;
+      if (!key) {
+        showToast("請先在上方輸入 Gemini API Key！");
+        return;
+      }
+      state.settings.apiKey = key;
+      saveState();
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?key=${encodeURIComponent(key)}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast("已複製專屬連結！傳給其他手機點開即自動綁定金鑰");
+      });
+    });
 
   // 重新載入預設 9 張實拍
   document

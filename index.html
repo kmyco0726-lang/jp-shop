@@ -158,8 +158,11 @@
             <span>Gemini API Key（用於自動辨識新上傳的照片）</span>
             <input type="password" id="inputApiKey" placeholder="貼上 AIzaSy... 金鑰（僅存於您的手機瀏覽器）" />
             <small class="field-hint">
-              可免費於 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 取得。未填寫時仍可使用預載照片或手動輸入商品。
+              可免費於 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 取得。填寫後可點下方按鈕產生專屬連結，其他手機點開即自動帶入免重填！
             </small>
+            <button type="button" id="btnCopyShareLinkWithKey" class="secondary-pill-btn" style="margin-top: 4px">
+              🔗 複製含金鑰的專屬連結（讓其他手機點開免設定）
+            </button>
           </label>
           <div class="form-row-2col">
             <label class="form-field">
