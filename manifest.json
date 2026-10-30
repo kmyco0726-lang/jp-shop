@@ -1,0 +1,9 @@
+{
+  "name": "旅途採買手帳｜日本藥妝比價與統計",
+  "short_name": "採買手帳",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FAF6F0",
+  "theme_color": "#FAF6F0",
+  "orientation": "portrait"
+}

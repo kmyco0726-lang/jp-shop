@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#FAF6F0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="採買手帳" />
+    <link rel="manifest" href="./manifest.json" />
+    <title>旅途採買手帳｜日本藥妝比價與統計</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="notebook-container">
+      <!-- 頂部繪本風標題與設定列 -->
+      <header class="app-header">
+        <div class="brand-title">
+          <svg class="brand-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 13C8 11.8954 8.89543 11 10 11H26C27.1046 11 28 11.8954 28 13V28C28 30.2091 26.2091 32 24 32H12C9.79086 32 8 30.2091 8 28V13Z" fill="#F3E5AB" stroke="#4A3F35" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M13 11V8C13 5.79086 14.7909 4 17 4H19C21.2091 4 23 5.79086 23 8V11" stroke="#4A3F35" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="14" cy="16" r="1.5" fill="#4A3F35"/>
+            <circle cx="22" cy="16" r="1.5" fill="#4A3F35"/>
+            <path d="M16 21C16.8 22 19.2 22 20 21" stroke="#D96B43" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <h1>旅途採買手帳</h1>
+            <p class="subtitle">拍下貨架・勾選想買的商品</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="btnOpenSettings" class="icon-btn" title="匯率與 AI 設定">
+            <span class="rate-pill" id="headerRateDisplay">¥1 = $0.215</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 商店切換書籤列 -->
+      <section class="store-tabs-section">
+        <div class="store-tabs" id="storeTabs"></div>
+        <button id="btnAddStore" class="add-store-btn" title="新增商店">＋ 新增商店</button>
+      </section>
+
+      <!-- 免稅進度條卡片 -->
+      <section class="tax-free-card" id="taxFreeCard">
+        <div class="tax-free-header">
+          <span class="store-badge" id="currentStoreName">商店名稱</span>
+          <span class="tax-free-status" id="taxFreeStatusText">距離免稅門檻還差 ¥5,000</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="taxFreeProgressBar" style="width: 0%"></div>
+        </div>
+        <div class="tax-free-sub">
+          <span>日本免稅基準：未稅滿 ¥5,000</span>
+          <button id="btnRenameStore" class="text-link-btn">改店名 / 刪除</button>
+        </div>
+      </section>
+
+      <!-- 拍照上傳與快速操作區 -->
+      <section class="upload-section">
+        <label for="photoInput" class="upload-box" id="uploadDropzone">
+          <input type="file" id="photoInput" accept="image/*" multiple hidden />
+          <div class="upload-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4A3F35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </div>
+          <div class="upload-text">
+            <strong>拍下或上傳貨架照片</strong>
+            <span>AI 自動抓出照片中多個商品與含稅/未稅價</span>
+          </div>
+        </label>
+        <div class="quick-actions-bar">
+          <button id="btnAddManualItem" class="secondary-pill-btn">✎ 手動記一筆商品</button>
+          <button id="btnFilterSelected" class="secondary-pill-btn" data-active="false">只看已選購商品</button>
+        </div>
+      </section>
+
+      <!-- AI 辨識狀態提示 -->
+      <div id="aiLoadingBanner" class="ai-loading-banner hidden">
+        <div class="spinner"></div>
+        <span id="aiLoadingText">正在用繪本放大鏡辨識照片中的商品與價格...</span>
+      </div>
+
+      <!-- 照片與商品卡片列表 -->
+      <main id="photoCardsContainer" class="photo-cards-container"></main>
+
+      <!-- 底部固定統計結算吧台 -->
+      <footer class="summary-Dock">
+        <div class="summary-main">
+          <div class="summary-count-block" id="btnToggleCartDetail">
+            <span class="cart-bubble" id="totalQtyBadge">0</span>
+            <div class="count-labels">
+              <span class="label-small">已選商品明細</span>
+              <span class="label-detail">點擊展開 ▴</span>
+            </div>
+          </div>
+          <div class="summary-prices">
+            <div class="price-row count-row">
+              <span class="price-tag-label">商品總件數</span>
+              <span class="price-qty" id="totalQtyText">0 件</span>
+              <span class="price-twd" id="totalKindsText">(共 0 品項)</span>
+            </div>
+            <div class="price-row untaxed-row">
+              <span class="price-tag-label">未稅總計</span>
+              <span class="price-yen" id="totalUntaxedYen">¥0</span>
+              <span class="price-twd" id="totalUntaxedTwd">(約 NT$0)</span>
+            </div>
+            <div class="price-row taxed-row">
+              <span class="price-tag-label">含稅總計</span>
+              <span class="price-yen highlight" id="totalTaxedYen">¥0</span>
+              <span class="price-twd" id="totalTaxedTwd">(約 NT$0)</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 已選購明細抽屜 (Bottom Sheet) -->
+    <div id="cartDrawerModal" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>🛒 本店採買清單明細</h3>
+          <button id="btnCloseCartDrawer" class="close-btn">✕</button>
+        </div>
+        <div id="cartDrawerList" class="cart-drawer-list"></div>
+        <div class="modal-footer-actions">
+          <button id="btnClearSelection" class="danger-outline-btn">清空本店勾選</button>
+          <button id="btnCopySummary" class="primary-btn">複製採買明細文字</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定與 API Key 視窗 -->
+    <div id="settingsModal" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>⚙️ 手帳設定（AI 辨識與匯率）</h3>
+          <button id="btnCloseSettings" class="close-btn">✕</button>
+        </div>
+        <div class="settings-form">
+          <label class="form-field">
+            <span>Gemini API Key（用於自動辨識新上傳的照片）</span>
+            <input type="password" id="inputApiKey" placeholder="貼上 AIzaSy... 金鑰（僅存於您的手機瀏覽器）" />
+            <small class="field-hint">
+              可免費於 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 取得。未填寫時仍可使用預載照片或手動輸入商品。
+            </small>
+          </label>
+          <div class="form-row-2col">
+            <label class="form-field">
+              <span>日幣兌台幣匯率 (JPY → TWD)</span>
+              <input type="number" id="inputExchangeRate" step="0.001" min="0.01" max="10" />
+            </label>
+            <label class="form-field">
+              <span>免稅門檻（未稅日幣）</span>
+              <input type="number" id="inputTaxFreeThreshold" step="100" min="0" />
+            </label>
+          </div>
+          <div class="preset-restore-box">
+            <span>內建範例與相簿重載：</span>
+            <button type="button" id="btnRestoreDemoPhotos" class="secondary-pill-btn">重新載入資料夾 9 張日本藥妝實拍</button>
+          </div>
+          <button id="btnSaveSettings" class="primary-btn full-width">儲存設定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增/編輯單一商品視窗 -->
+    <div id="itemModal" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 id="itemModalTitle">✎ 新增/編輯商品</h3>
+          <button id="btnCloseItemModal" class="close-btn">✕</button>
+        </div>
+        <div class="settings-form">
+          <input type="hidden" id="editCardId" />
+          <input type="hidden" id="editItemId" />
+          <label class="form-field">
+            <span>商品名稱（日文或中文備註）</span>
+            <input type="text" id="inputItemName" placeholder="例如：DHC 速攻藍莓 60日分" />
+          </label>
+          <label class="form-field">
+            <span>規格 / 補充說明（選填）</span>
+            <input type="text" id="inputItemNote" placeholder="例如：60日分 120粒 / 15ml" />
+          </label>
+          <div class="tax-rate-selector">
+            <span>稅率自動換算：</span>
+            <button type="button" class="tax-chip active" data-tax="10">10% (一般醫藥/美妝)</button>
+            <button type="button" class="tax-chip" data-tax="8">8% (食品/保健品)</button>
+          </div>
+          <div class="form-row-2col">
+            <label class="form-field">
+              <span>未稅價 (本体価格 ¥)</span>
+              <input type="number" id="inputItemUntaxed" placeholder="例如 1480" step="1" min="0" />
+            </label>
+            <label class="form-field">
+              <span>含稅價 (税込価格 ¥)</span>
+              <input type="number" id="inputItemTaxed" placeholder="例如 1628" step="1" min="0" />
+            </label>
+          </div>
+          <div class="modal-footer-actions">
+            <button type="button" id="btnDeleteItemInModal" class="danger-outline-btn hidden">刪除此品項</button>
+            <button type="button" id="btnSaveItem" class="primary-btn full-width">確認儲存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 放大檢視原圖 Lightbox -->
+    <div id="lightboxModal" class="modal-backdrop hidden">
+      <div class="lightbox-content">
+        <button id="btnCloseLightbox" class="lightbox-close">✕ 關閉原圖</button>
+        <img id="lightboxImg" src="" alt="貨架原圖" />
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
