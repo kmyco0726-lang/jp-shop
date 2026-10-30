@@ -1276,17 +1276,19 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     },
   });
 
-  // 超速抗塞車候選：包含高可用度輕量版 gemini-2.0-flash-lite / gemini-1.5-flash-8b
+  // 徹底剔除已下架的 2.5-flash，鎖定當前正式支援的 Flash 模型
   const candidateModels = [];
-  if (state.settings.preferredModel) {
+  if (
+    state.settings.preferredModel &&
+    !state.settings.preferredModel.includes("2.5")
+  ) {
     candidateModels.push(state.settings.preferredModel);
   }
   for (const m of [
-    "gemini-2.0-flash-lite",
     "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
     "gemini-1.5-flash",
     "gemini-1.5-flash-8b",
-    "gemini-2.5-flash",
   ]) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
@@ -1344,6 +1346,12 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
       // 429 額度/頻率限制：切換下一個模型
       if (response.status === 429) {
         lastErrorMsg = `模型 ${modelName} 額度受限 (429)`;
+        continue;
+      }
+
+      // 404 已下架或不存在模型：直接切換下一個模型，不拋錯
+      if (response.status === 404) {
+        lastErrorMsg = `模型 ${modelName} 不適用 (404)，切換其他模型`;
         continue;
       }
 
