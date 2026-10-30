@@ -1270,26 +1270,19 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.1,
-      thinkingConfig: {
-        thinkingBudget: 0,
-      },
     },
   });
 
-  // 徹底剔除已下架的 2.5-flash，鎖定當前正式支援的 Flash 模型
+  // Google 2.x 全新專案唯一正式支援的極速 Flash 模型
   const candidateModels = [];
   if (
     state.settings.preferredModel &&
-    !state.settings.preferredModel.includes("2.5")
+    (state.settings.preferredModel.includes("2.0-flash") ||
+      state.settings.preferredModel.includes("flash-lite"))
   ) {
     candidateModels.push(state.settings.preferredModel);
   }
-  for (const m of [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-  ]) {
+  for (const m of ["gemini-2.0-flash", "gemini-2.0-flash-lite"]) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
 
