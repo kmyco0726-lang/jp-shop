@@ -1273,18 +1273,27 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     },
   });
 
-  // Google 2.x 全新專案唯一正式支援的極速 Flash 模型
+  // 候選模型：上次成功的 → 目前主流穩定版 → 該金鑰實際可用清單 → 舊版備援
+  // （2.0 系列對新建立的金鑰/專案已不再開放，會回 404，因此排在最後）
   const candidateModels = [];
-  if (
-    state.settings.preferredModel &&
-    (state.settings.preferredModel.includes("2.0-flash") ||
-      state.settings.preferredModel.includes("flash-lite"))
-  ) {
-    candidateModels.push(state.settings.preferredModel);
-  }
-  for (const m of ["gemini-2.0-flash", "gemini-2.0-flash-lite"]) {
-    if (!candidateModels.includes(m)) candidateModels.push(m);
-  }
+  const addCandidate = (m) => {
+    if (m && !candidateModels.includes(m)) candidateModels.push(m);
+  };
+  addCandidate(state.settings.preferredModel);
+  addCandidate("gemini-2.5-flash");
+  addCandidate("gemini-flash-latest");
+
+  if (onStatusUpdate) onStatusUpdate("正在查詢此金鑰可用的 AI 模型...");
+  try {
+    const available = await fetchAvailableGeminiModelsList(apiKey);
+    available
+      .filter((n) => !n.startsWith("gemini-2.0"))
+      .slice(0, 4)
+      .forEach(addCandidate);
+  } catch (_) {}
+
+  addCandidate("gemini-2.0-flash");
+  addCandidate("gemini-2.0-flash-lite");
 
   let lastErrorMsg = "";
 
