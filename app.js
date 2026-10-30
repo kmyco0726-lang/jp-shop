@@ -981,13 +981,64 @@ async function imageUrlToBase64(url) {
   return dataUrl.split(",")[1];
 }
 
+let currentAiAbortController = null;
+
+// 帶超時與手動取消支援的 fetch
+async function fetchWithTimeout(url, options = {}, timeoutMs = 18000) {
+  const controller = new AbortController();
+  currentAiAbortController = controller;
+  const timer = setTimeout(() => controller.abort(new Error("TIMEOUT")), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    if (currentAiAbortController === controller) {
+      currentAiAbortController = null;
+    }
+  }
+}
+
+// 從 Gemini 回傳結構中安全提取 JSON（自動跳過 Gemini 2.5/3 的 thought 思考段落）
+function extractJsonFromGeminiResult(result) {
+  const parts = result?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts) || parts.length === 0) return {};
+
+  // 優先取非 thought 的最後一個文字段落
+  const nonThoughtParts = parts.filter((p) => !p.thought && typeof p.text === "string");
+  const candidateTexts =
+    nonThoughtParts.length > 0
+      ? nonThoughtParts.map((p) => p.text).reverse()
+      : parts.filter((p) => typeof p.text === "string").map((p) => p.text).reverse();
+
+  for (const raw of candidateTexts) {
+    const cleaned = raw
+      .replace(/^```json\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch (_) {
+      const firstBrace = cleaned.indexOf("{");
+      const lastBrace = cleaned.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        try {
+          return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+        } catch (_2) {}
+      }
+    }
+  }
+  return {};
+}
+
 // 動態查詢該 API Key 可用的最新 Gemini Vision 模型
 async function fetchAvailableGeminiModel(apiKey) {
   try {
-    const resp = await fetch(
+    const resp = await fetchWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
         apiKey
-      )}`
+      )}`,
+      {},
+      5000
     );
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -1000,38 +1051,34 @@ async function fetchAvailableGeminiModel(apiKey) {
       )
       .map((m) => String(m.name || "").replace(/^models\//, ""));
 
-    // 優先選擇 flash 系列多模態模型
-    const flashModel =
-      supported.find((n) => n === "gemini-flash-latest") ||
-      supported.find((n) => n.includes("flash") && !n.includes("8b") && !n.includes("tts") && !n.includes("image")) ||
-      supported.find((n) => n.includes("gemini"));
-    return flashModel || null;
+    // 優先選擇最新數字版本 flash 模型（避免選到慢速 thinking preview 或 tts/image 模型）
+    const flashCandidates = supported.filter(
+      (n) =>
+        n.includes("flash") &&
+        !n.includes("8b") &&
+        !n.includes("tts") &&
+        !n.includes("image") &&
+        !n.includes("thinking")
+    );
+    if (flashCandidates.length > 0) {
+      // 取列表中排序較新（通常在後方）的穩定 flash 模型
+      return flashCandidates[flashCandidates.length - 1];
+    }
+    return supported.find((n) => n.includes("gemini")) || null;
   } catch (_) {
     return null;
   }
 }
 
-// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價（具備 404 自動切換最新模型機制）
-async function analyzeShelfImageWithGemini(base64Data) {
+// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價（具備進度顯示、超時保護與 404 自動切換模型）
+async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   const apiKey = (state.settings.apiKey || "").trim();
   if (!apiKey) {
     throw new Error("NO_API_KEY");
   }
 
-  const promptText = `你是一位專精日本藥妝與旅遊採買的助手。請仔細辨識這張貨架或商品照片中出現的所有商品與標價牌。
-請回傳 JSON 格式：
-{
-  "photoTitle": "簡短照片主題（例如：DHC 護唇膏貨架）",
-  "items": [
-    {
-      "name": "商品名稱（包含日文原名與繁體中文簡稱，方便旅客核對）",
-      "note": "容量、粒數、顏色或稅率補充說明",
-      "untaxedPrice": 整數未稅日幣價格（本体価格，若照片只有一個價格請依稅率推算）,
-      "taxedPrice": 整數含稅日幣價格（税込価格，四捨五入取整數）,
-      "taxRate": 10 或 8（食品保健品多為8%，醫藥美妝多為10%）
-    }
-  ]
-}`;
+  const promptText = `請辨識這張日本商店貨架照片中的所有商品與標價，直接回傳 JSON：
+{"photoTitle":"貨架簡短主題","items":[{"name":"日文原名與中文簡稱","note":"容量或規格","untaxedPrice":未稅日幣整數,"taxedPrice":含稅日幣整數,"taxRate":10或8}]}`;
 
   const requestBody = JSON.stringify({
     contents: [
@@ -1053,16 +1100,24 @@ async function analyzeShelfImageWithGemini(base64Data) {
     },
   });
 
-  // 候選模型優先順序（若曾成功過則優先使用，其次使用最新別名與各版本 Flash）
+  // 先快速查詢帳號可用模型（若尚未快取），避免盲目上傳圖片到 404 模型浪費時間
+  if (!state.settings.preferredModel) {
+    if (onStatusUpdate) onStatusUpdate("正在自動偵測您的金鑰支援的最快模型...");
+    const discoveredFirst = await fetchAvailableGeminiModel(apiKey);
+    if (discoveredFirst) {
+      state.settings.preferredModel = discoveredFirst;
+      saveState();
+    }
+  }
+
   const candidateModels = [];
   if (state.settings.preferredModel) {
     candidateModels.push(state.settings.preferredModel);
   }
   for (const m of [
-    "gemini-flash-latest",
-    "gemini-3-flash-preview",
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
   ]) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
@@ -1072,15 +1127,23 @@ async function analyzeShelfImageWithGemini(base64Data) {
 
   for (let i = 0; i < candidateModels.length; i++) {
     const modelName = candidateModels[i];
+    if (onStatusUpdate) {
+      onStatusUpdate(`正在用 AI (${modelName}) 辨識商品與未稅/含稅價...`);
+    }
+
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
       apiKey
     )}`;
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: requestBody,
-    });
+    const response = await fetchWithTimeout(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: requestBody,
+      },
+      20000
+    );
 
     if (response.ok) {
       if (state.settings.preferredModel !== modelName) {
@@ -1088,24 +1151,17 @@ async function analyzeShelfImageWithGemini(base64Data) {
         saveState();
       }
       const result = await response.json();
-      const textContent =
-        result?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      const cleanJson = textContent
-        .replace(/^```json\s*/i, "")
-        .replace(/```\s*$/, "")
-        .trim();
-      return JSON.parse(cleanJson || "{}");
+      return extractJsonFromGeminiResult(result);
     }
 
     lastStatus = response.status;
     lastErrorText = await response.text();
 
-    // 若非 404 模型不存在錯誤（例如 400 金鑰無效、429 額度滿），直接中止重試
     if (response.status !== 404) {
       break;
     }
 
-    // 若 Google 404 訊息中明確提示了建議模型（例如 "use models/gemini-xxx"），自動擷取並排入下一個重試
+    // 從 Google 404 訊息中自動擷取建議的新模型名稱（例如 "use models/gemini-xxx"）
     const suggestedMatch = lastErrorText.match(/models\/([a-zA-Z0-9._-]+)/g);
     if (suggestedMatch) {
       for (const raw of suggestedMatch) {
@@ -1115,20 +1171,12 @@ async function analyzeShelfImageWithGemini(base64Data) {
         }
       }
     }
-
-    // 若候選清單已試完仍 404，向 API 動態查詢該帳號支援的模型列表
-    if (i === candidateModels.length - 1) {
-      const discovered = await fetchAvailableGeminiModel(apiKey);
-      if (discovered && !candidateModels.includes(discovered)) {
-        candidateModels.push(discovered);
-      }
-    }
   }
 
-  throw new Error(`Gemini API 錯誤 (${lastStatus}): ${lastErrorText}`);
+  throw new Error(`Gemini API (${lastStatus}): ${lastErrorText.slice(0, 180)}`);
 }
 
-// 處理使用者上傳新照片
+// 處理使用者上傳新照片（先秒建照片卡片，再背景執行 AI 辨識，絕不卡死畫面）
 async function handlePhotoUpload(files) {
   if (!files || files.length === 0) return;
   const store = getCurrentStore();
@@ -1138,92 +1186,115 @@ async function handlePhotoUpload(files) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     banner.classList.remove("hidden");
-    loadingText.textContent = `正在處理第 ${i + 1} / ${files.length} 張照片...`;
+    loadingText.textContent = `正在壓縮處理第 ${i + 1} / ${files.length} 張照片...`;
 
-    let dataUrl = "";
     const newCardId = "card_" + Date.now() + "_" + i;
+    let newCard = null;
+    let elapsedTimer = null;
 
     try {
-      dataUrl = await compressImageFile(file, 1280, 0.8);
-      const base64Data = dataUrl.split(",")[1];
+      // 1. 卡片顯示用縮圖 (1024px) 與 AI 快速傳輸用輕量圖 (800px，大幅加快行動網路上傳速度)
+      const dataUrl = await compressImageFile(file, 1024, 0.78);
+      const aiDataUrl = await compressImageFile(file, 800, 0.7);
+      const base64Data = aiDataUrl.split(",")[1];
 
-      if (state.settings.apiKey) {
-        loadingText.textContent = `正在用 AI 辨識照片中的商品與未稅/含稅價...`;
-        const parsed = await analyzeShelfImageWithGemini(base64Data);
-        const items = Array.isArray(parsed.items)
-          ? parsed.items.map((it, idx) => ({
-              id: `item_${Date.now()}_${idx}`,
-              name: it.name || "未命名商品",
-              note: it.note || "",
-              untaxedPrice: Math.round(Number(it.untaxedPrice) || 0),
-              taxedPrice: Math.round(
-                Number(it.taxedPrice) ||
-                  Math.round((Number(it.untaxedPrice) || 0) * 1.1)
-              ),
-              taxRate: Number(it.taxRate) === 8 ? 8 : 10,
-              selected: false,
-              qty: 1,
-            }))
-          : [];
+      // 2. 立即把照片卡片放到畫面上，不等 AI 回應就能先看到照片！
+      newCard = {
+        id: newCardId,
+        title: `新上傳貨架 (${file.name})`,
+        imageUrl: dataUrl,
+        items: [],
+      };
+      store.cards.unshift(newCard);
+      saveState();
+      renderApp();
 
-        store.cards.unshift({
-          id: newCardId,
-          title: parsed.photoTitle || `新上傳貨架 (${file.name})`,
-          imageUrl: dataUrl,
-          items,
-        });
-        saveState();
-        renderApp();
-      } else {
-        // 未設定 API Key 時，先建立照片卡片並彈出新增商品視窗
-        store.cards.unshift({
-          id: newCardId,
-          title: `新拍貨架照片 (${file.name})`,
-          imageUrl: dataUrl,
-          items: [],
-        });
-        saveState();
-        renderApp();
+      if (!state.settings.apiKey) {
+        banner.classList.add("hidden");
         openItemModal(newCardId, null);
+        continue;
       }
+
+      // 3. 啟動秒數計時顯示，讓使用者清楚看到進度並可隨時點「略過 AI」
+      let seconds = 0;
+      let currentStageText = "正在用 AI 辨識照片中的商品與未稅/含稅價...";
+      loadingText.textContent = currentStageText;
+      elapsedTimer = setInterval(() => {
+        seconds += 1;
+        loadingText.textContent = `${currentStageText} (${seconds}s)`;
+      }, 1000);
+
+      const parsed = await analyzeShelfImageWithGemini(base64Data, (msg) => {
+        currentStageText = msg;
+        loadingText.textContent = `${currentStageText} (${seconds}s)`;
+      });
+
+      const items = Array.isArray(parsed.items)
+        ? parsed.items.map((it, idx) => ({
+            id: `item_${Date.now()}_${idx}`,
+            name: it.name || "未命名商品",
+            note: it.note || "",
+            untaxedPrice: Math.round(Number(it.untaxedPrice) || 0),
+            taxedPrice: Math.round(
+              Number(it.taxedPrice) ||
+                Math.round((Number(it.untaxedPrice) || 0) * 1.1)
+            ),
+            taxRate: Number(it.taxRate) === 8 ? 8 : 10,
+            selected: false,
+            qty: 1,
+          }))
+        : [];
+
+      newCard.title = parsed.photoTitle || newCard.title;
+      newCard.items = items;
+      saveState();
+      renderApp();
+      showToast(
+        items.length > 0
+          ? `✨ 成功辨識出 ${items.length} 項商品！`
+          : "照片已加入（未偵測到標價，可點下方新增品項）"
+      );
     } catch (err) {
       console.error(err);
-      // 即使 AI 辨識失敗，依然保留剛拍下的照片卡片，讓使用者可手動新增或稍後重試
-      if (dataUrl) {
-        store.cards.unshift({
-          id: newCardId,
-          title: `新拍貨架照片 (${file.name})`,
-          imageUrl: dataUrl,
-          items: [],
-        });
-        saveState();
-        renderApp();
+      if (err.name === "AbortError" || String(err.message).includes("USER_CANCEL")) {
+        showToast("已略過 AI 辨識，請手動輸入商品價格");
+        if (newCard) openItemModal(newCard.id, null);
+      } else if (String(err.message).includes("TIMEOUT")) {
+        showToast("AI 回應逾時 (超過20秒)，照片已保留，可點「✨ AI 重新辨識」或手動新增");
+      } else {
+        showToast(`照片已保留，AI 辨識失敗：${err.message}`);
       }
-      alert(
-        err.message === "NO_API_KEY"
-          ? "尚未設定 Gemini API Key，請先至右上角設定輸入，或直接手動輸入商品價格。"
-          : `照片已加入，但 AI 自動辨識失敗：${err.message}`
-      );
+    } finally {
+      if (elapsedTimer) clearInterval(elapsedTimer);
+      banner.classList.add("hidden");
     }
   }
-
-  banner.classList.add("hidden");
 }
 
 async function rescanCardWithAI(card) {
   if (!state.settings.apiKey) {
-    alert("請先點擊右上角「設定」填入 Gemini API Key，即可使用 AI 自動辨識！");
+    showToast("請先在設定中填入 Gemini API Key！");
     openSettingsModal();
     return;
   }
   const banner = document.getElementById("aiLoadingBanner");
   const loadingText = document.getElementById("aiLoadingText");
   banner.classList.remove("hidden");
-  loadingText.textContent = `正在重新辨識「${card.title}」的所有商品與價格...`;
+
+  let seconds = 0;
+  let currentStageText = `正在重新辨識「${card.title}」...`;
+  loadingText.textContent = currentStageText;
+  const elapsedTimer = setInterval(() => {
+    seconds += 1;
+    loadingText.textContent = `${currentStageText} (${seconds}s)`;
+  }, 1000);
 
   try {
     const base64Data = await imageUrlToBase64(card.imageUrl);
-    const parsed = await analyzeShelfImageWithGemini(base64Data);
+    const parsed = await analyzeShelfImageWithGemini(base64Data, (msg) => {
+      currentStageText = msg;
+      loadingText.textContent = `${currentStageText} (${seconds}s)`;
+    });
     if (Array.isArray(parsed.items) && parsed.items.length > 0) {
       card.title = parsed.photoTitle || card.title;
       card.items = parsed.items.map((it, idx) => ({
@@ -1238,12 +1309,14 @@ async function rescanCardWithAI(card) {
       }));
       saveState();
       renderApp();
+      showToast(`✨ 重新辨識完成，共 ${card.items.length} 項商品！`);
     } else {
-      alert("AI 未在照片中找到明確標價，可點選「＋ 新增此圖商品」手動補充。");
+      showToast("AI 未在照片中找到明確標價，可點選「＋ 新增這張照片的品項」");
     }
   } catch (err) {
-    alert(`AI 辨識失敗：${err.message}`);
+    showToast(`AI 重新辨識未完成：${err.message}`);
   } finally {
+    clearInterval(elapsedTimer);
     banner.classList.add("hidden");
   }
 }
@@ -1467,6 +1540,17 @@ function deleteCurrentStore() {
 
 // 綁定所有全域事件
 function bindEvents() {
+  // 略過/取消 AI 辨識按鈕
+  const cancelAiBtn = document.getElementById("btnCancelAiScan");
+  if (cancelAiBtn) {
+    cancelAiBtn.addEventListener("click", () => {
+      if (currentAiAbortController) {
+        currentAiAbortController.abort(new Error("USER_CANCEL"));
+      }
+      document.getElementById("aiLoadingBanner").classList.add("hidden");
+    });
+  }
+
   // 確認視窗事件
   document
     .getElementById("btnCloseConfirmModal")
