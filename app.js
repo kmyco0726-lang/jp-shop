@@ -945,10 +945,16 @@ function renderSummaryDock() {
   document.getElementById("totalTaxedTwd").textContent = `(${formatTwd(totalTaxed)})`;
 }
 
-// 影像壓縮與 Base64 轉換（手機極速輕量化：壓制在 600px / 0.6 品質，傳輸僅 40~60KB，2秒內秒傳秒回）
+// 影像壓縮與 Base64 轉換（針對 iPhone iOS Safari 與各行動瀏覽器極致相容優化）
 function compressImageFile(file, maxDim = 600, quality = 0.6) {
   return new Promise((resolve, reject) => {
-    if (window.createImageBitmap) {
+    // 檢查是否為 iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // iOS Safari 在處理相機原始 HEIC/JPEG 時，createImageBitmap 常有無聲當機或方向顛倒問題
+    // 因此在 iOS 優先採用標準 FileReader + HTMLImageElement
+    if (!isIOS && window.createImageBitmap) {
       createImageBitmap(file)
         .then((bitmap) => {
           let { width, height } = bitmap;
@@ -962,8 +968,8 @@ function compressImageFile(file, maxDim = 600, quality = 0.6) {
             }
           }
           const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
           const ctx = canvas.getContext("2d");
           ctx.drawImage(bitmap, 0, 0, width, height);
           resolve(canvas.toDataURL("image/jpeg", quality));
@@ -979,8 +985,14 @@ function fallbackCompress(file, maxDim, quality, resolve, reject) {
   const reader = new FileReader();
   reader.onload = (ev) => {
     const img = new Image();
+    // 跨域與 iOS 生命週期安全
+    img.crossOrigin = "anonymous";
     img.onload = () => {
-      let { width, height } = img;
+      let { naturalWidth: width, naturalHeight: height } = img;
+      if (!width || !height) {
+        width = img.width || 600;
+        height = img.height || 600;
+      }
       if (width > maxDim || height > maxDim) {
         if (width > height) {
           height = Math.round((height * maxDim) / width);
@@ -991,16 +1003,21 @@ function fallbackCompress(file, maxDim, quality, resolve, reject) {
         }
       }
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", quality));
+      try {
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      } catch (err) {
+        reject(new Error("圖片壓縮失敗: " + err.message));
+      }
     };
-    img.onerror = reject;
+    img.onerror = () => reject(new Error("手機相片載入失敗，請確認檔案格式是否支援"));
     img.src = ev.target.result;
   };
-  reader.onerror = reject;
+  reader.onerror = () => reject(new Error("讀取手機照片失敗"));
   reader.readAsDataURL(file);
 }
 
