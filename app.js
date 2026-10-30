@@ -945,8 +945,8 @@ function renderSummaryDock() {
   document.getElementById("totalTaxedTwd").textContent = `(${formatTwd(totalTaxed)})`;
 }
 
-// 影像壓縮與 Base64 轉換（避免手機原圖塞爆 LocalStorage 與加快 API 傳輸）
-function compressImageFile(file, maxDim = 1280, quality = 0.8) {
+// 影像壓縮與 Base64 轉換（以最快速度輸出 800px 輕量圖，縮短傳輸至 1~2 秒並確保標籤清晰）
+function compressImageFile(file, maxDim = 800, quality = 0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -985,19 +985,35 @@ async function imageUrlToBase64(url) {
   }
   const resp = await fetch(url);
   const blob = await resp.blob();
-  const dataUrl = await compressImageFile(blob, 1280, 0.82);
+  const dataUrl = await compressImageFile(blob, 800, 0.72);
   return dataUrl.split(",")[1];
 }
 
+let isUserExplicitCancel = false;
 let currentAiAbortController = null;
 
-// 帶超時與手動取消支援的 fetch
-async function fetchWithTimeout(url, options = {}, timeoutMs = 18000) {
+// 帶超時與手動取消支援的 fetch（超時設定 30 秒，清楚區分「使用者主動略過」與「網路逾時」）
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   currentAiAbortController = controller;
-  const timer = setTimeout(() => controller.abort(new Error("TIMEOUT")), timeoutMs);
+  let isTimeout = false;
+  const timer = setTimeout(() => {
+    isTimeout = true;
+    try {
+      controller.abort();
+    } catch (_) {}
+  }, timeoutMs);
+
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (isTimeout) {
+      throw new Error("API 回應逾時 (超過 30 秒)，請點「✨ AI 重新辨識」重試");
+    }
+    if (isUserExplicitCancel) {
+      throw new Error("USER_CANCEL");
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
     if (currentAiAbortController === controller) {
@@ -1165,12 +1181,18 @@ async function fetchAvailableGeminiModelsList(apiKey) {
         !n.includes("8b")
     );
 
-    // 優先將標準穩定版（例如 gemini-3.8-flash, gemini-3.0-flash, gemini-2.5-flash, gemini-2.0-flash, gemini-flash-latest）排最前面
+    // 優先將極速穩定版模型（例如 gemini-2.0-flash, gemini-flash-latest, gemini-2.5-flash）排在最前面
+    // 降級思考型/實驗型模型（如 3.6、preview 等預設思考耗時較長者排在後方）
     validVisionModels.sort((a, b) => {
-      const isCleanA = /^gemini-\d+(\.\d+)?-flash$/.test(a) ? 1 : 0;
-      const isCleanB = /^gemini-\d+(\.\d+)?-flash$/.test(b) ? 1 : 0;
-      if (isCleanA !== isCleanB) return isCleanB - isCleanA;
-      return b.localeCompare(a);
+      const getPriority = (name) => {
+        if (name === "gemini-2.0-flash") return 100;
+        if (name === "gemini-flash-latest") return 95;
+        if (name === "gemini-2.5-flash") return 90;
+        if (name === "gemini-3.8-flash") return 80;
+        if (/^gemini-\d+(\.\d+)?-flash$/.test(name)) return 70;
+        return 50;
+      };
+      return getPriority(b) - getPriority(a);
     });
 
     return validVisionModels;
@@ -1220,26 +1242,8 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     ],
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: {
-        type: "OBJECT",
-        properties: {
-          photoTitle: { type: "STRING" },
-          items: {
-            type: "ARRAY",
-            items: {
-              type: "OBJECT",
-              properties: {
-                name: { type: "STRING" },
-                note: { type: "STRING" },
-                untaxedPrice: { type: "INTEGER" },
-                taxedPrice: { type: "INTEGER" },
-                taxRate: { type: "INTEGER" },
-              },
-              required: ["name", "untaxedPrice", "taxedPrice"],
-            },
-          },
-        },
-        required: ["items"],
+      thinkingConfig: {
+        thinkingBudget: 0,
       },
       temperature: 0.1,
     },
@@ -1254,11 +1258,10 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
   for (const fallback of [
-    "gemini-flash-latest",
-    "gemini-3.8-flash",
-    "gemini-3.0-flash",
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-3.8-flash",
   ]) {
     if (!candidateModels.includes(fallback)) candidateModels.push(fallback);
   }
@@ -1400,7 +1403,7 @@ async function handlePhotoUpload(files) {
       );
     } catch (err) {
       console.error(err);
-      if (err.name === "AbortError" || String(err.message).includes("USER_CANCEL")) {
+      if (err.message === "USER_CANCEL" || isUserExplicitCancel) {
         if (newCard) {
           newCard.aiStatus = "已手動略過 AI 辨識，可點下方「＋ 新增這張照片的品項」";
           saveState();
@@ -1417,6 +1420,7 @@ async function handlePhotoUpload(files) {
         showToast(`AI 辨識未成功：${err.message}`);
       }
     } finally {
+      isUserExplicitCancel = false;
       if (elapsedTimer) clearInterval(elapsedTimer);
       banner.classList.add("hidden");
     }
@@ -1697,8 +1701,9 @@ function bindEvents() {
   const cancelAiBtn = document.getElementById("btnCancelAiScan");
   if (cancelAiBtn) {
     cancelAiBtn.addEventListener("click", () => {
+      isUserExplicitCancel = true;
       if (currentAiAbortController) {
-        currentAiAbortController.abort(new Error("USER_CANCEL"));
+        currentAiAbortController.abort();
       }
       document.getElementById("aiLoadingBanner").classList.add("hidden");
     });
