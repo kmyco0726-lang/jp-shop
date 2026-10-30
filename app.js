@@ -1276,7 +1276,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     },
   });
 
-  // 超速直連候選：以 gemini-2.0-flash / gemini-1.5-flash 最快速
+  // 超速直連候選：首選 gemini-2.0-flash，備選 gemini-2.5-flash、gemini-1.5-flash、gemini-flash-latest
   const candidateModels = [];
   if (state.settings.preferredModel) {
     candidateModels.push(state.settings.preferredModel);
@@ -1284,6 +1284,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   for (const m of [
     "gemini-2.0-flash",
     "gemini-2.5-flash",
+    "gemini-1.5-flash",
     "gemini-flash-latest",
   ]) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
@@ -1294,7 +1295,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   for (let i = 0; i < candidateModels.length; i++) {
     const modelName = candidateModels[i];
     if (onStatusUpdate) {
-      onStatusUpdate(`正在用 AI (${modelName}) 快速判讀...`);
+      onStatusUpdate(`正在用 AI (${modelName}) 判讀中...`);
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
@@ -1302,7 +1303,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     )}`;
 
     try {
-      // 單次連線上限 20 秒，超時切換備用模型
+      // 單次連線上限 15 秒，塞車或超時自動切換備用模型
       const response = await fetchWithTimeout(
         endpoint,
         {
@@ -1310,7 +1311,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
           headers: { "Content-Type": "application/json" },
           body: requestBody,
         },
-        20000
+        15000
       );
 
       if (response.ok) {
@@ -1332,10 +1333,15 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
         throw new Error("API Key 無效，請至右上角「⚙️ 設定」檢查金鑰是否複製完整");
       }
 
-      // 429 額度/頻率限制（若不是每分鐘限制，而是該模型未開放免費層額度，嘗試切換下一個模型）
+      // 503 伺服器尖峰塞車 (high demand) 或 500 暫時錯誤：立即無縫切換下一個模型！
+      if (response.status === 503 || response.status === 500) {
+        lastErrorMsg = `模型 ${modelName} 伺服器塞車 (503)，切換備用模型...`;
+        continue;
+      }
+
+      // 429 額度/頻率限制：切換下一個模型
       if (response.status === 429) {
-        lastErrorMsg = `模型 ${modelName} 額度受限 (429: ${errText.slice(0, 100)})`;
-        // 不直接拋出中斷，讓迴圈嘗試下一個候選模型（例如 2.0-flash 或 1.5-flash / flash-latest）
+        lastErrorMsg = `模型 ${modelName} 額度受限 (429)`;
         continue;
       }
 
