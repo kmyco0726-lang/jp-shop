@@ -981,16 +981,42 @@ async function imageUrlToBase64(url) {
   return dataUrl.split(",")[1];
 }
 
-// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價
+// 動態查詢該 API Key 可用的最新 Gemini Vision 模型
+async function fetchAvailableGeminiModel(apiKey) {
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
+        apiKey
+      )}`
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const models = Array.isArray(data.models) ? data.models : [];
+    const supported = models
+      .filter(
+        (m) =>
+          Array.isArray(m.supportedGenerationMethods) &&
+          m.supportedGenerationMethods.includes("generateContent")
+      )
+      .map((m) => String(m.name || "").replace(/^models\//, ""));
+
+    // 優先選擇 flash 系列多模態模型
+    const flashModel =
+      supported.find((n) => n === "gemini-flash-latest") ||
+      supported.find((n) => n.includes("flash") && !n.includes("8b") && !n.includes("tts") && !n.includes("image")) ||
+      supported.find((n) => n.includes("gemini"));
+    return flashModel || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價（具備 404 自動切換最新模型機制）
 async function analyzeShelfImageWithGemini(base64Data) {
   const apiKey = (state.settings.apiKey || "").trim();
   if (!apiKey) {
     throw new Error("NO_API_KEY");
   }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
 
   const promptText = `你是一位專精日本藥妝與旅遊採買的助手。請仔細辨識這張貨架或商品照片中出現的所有商品與標價牌。
 請回傳 JSON 格式：
@@ -1007,39 +1033,99 @@ async function analyzeShelfImageWithGemini(base64Data) {
   ]
 }`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: promptText },
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Data,
-              },
+  const requestBody = JSON.stringify({
+    contents: [
+      {
+        parts: [
+          { text: promptText },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: base64Data,
             },
-          ],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
+          },
+        ],
       },
-    }),
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.1,
+    },
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API 錯誤 (${response.status}): ${errText}`);
+  // 候選模型優先順序（若曾成功過則優先使用，其次使用最新別名與各版本 Flash）
+  const candidateModels = [];
+  if (state.settings.preferredModel) {
+    candidateModels.push(state.settings.preferredModel);
+  }
+  for (const m of [
+    "gemini-flash-latest",
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+  ]) {
+    if (!candidateModels.includes(m)) candidateModels.push(m);
   }
 
-  const result = await response.json();
-  const textContent =
-    result?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  return JSON.parse(textContent);
+  let lastStatus = 0;
+  let lastErrorText = "";
+
+  for (let i = 0; i < candidateModels.length; i++) {
+    const modelName = candidateModels[i];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+    });
+
+    if (response.ok) {
+      if (state.settings.preferredModel !== modelName) {
+        state.settings.preferredModel = modelName;
+        saveState();
+      }
+      const result = await response.json();
+      const textContent =
+        result?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      const cleanJson = textContent
+        .replace(/^```json\s*/i, "")
+        .replace(/```\s*$/, "")
+        .trim();
+      return JSON.parse(cleanJson || "{}");
+    }
+
+    lastStatus = response.status;
+    lastErrorText = await response.text();
+
+    // 若非 404 模型不存在錯誤（例如 400 金鑰無效、429 額度滿），直接中止重試
+    if (response.status !== 404) {
+      break;
+    }
+
+    // 若 Google 404 訊息中明確提示了建議模型（例如 "use models/gemini-xxx"），自動擷取並排入下一個重試
+    const suggestedMatch = lastErrorText.match(/models\/([a-zA-Z0-9._-]+)/g);
+    if (suggestedMatch) {
+      for (const raw of suggestedMatch) {
+        const cleanName = raw.replace(/^models\//, "");
+        if (cleanName && !candidateModels.includes(cleanName)) {
+          candidateModels.splice(i + 1, 0, cleanName);
+        }
+      }
+    }
+
+    // 若候選清單已試完仍 404，向 API 動態查詢該帳號支援的模型列表
+    if (i === candidateModels.length - 1) {
+      const discovered = await fetchAvailableGeminiModel(apiKey);
+      if (discovered && !candidateModels.includes(discovered)) {
+        candidateModels.push(discovered);
+      }
+    }
+  }
+
+  throw new Error(`Gemini API 錯誤 (${lastStatus}): ${lastErrorText}`);
 }
 
 // 處理使用者上傳新照片
@@ -1054,10 +1140,12 @@ async function handlePhotoUpload(files) {
     banner.classList.remove("hidden");
     loadingText.textContent = `正在處理第 ${i + 1} / ${files.length} 張照片...`;
 
+    let dataUrl = "";
+    const newCardId = "card_" + Date.now() + "_" + i;
+
     try {
-      const dataUrl = await compressImageFile(file, 1280, 0.8);
+      dataUrl = await compressImageFile(file, 1280, 0.8);
       const base64Data = dataUrl.split(",")[1];
-      const newCardId = "card_" + Date.now() + "_" + i;
 
       if (state.settings.apiKey) {
         loadingText.textContent = `正在用 AI 辨識照片中的商品與未稅/含稅價...`;
@@ -1100,10 +1188,21 @@ async function handlePhotoUpload(files) {
       }
     } catch (err) {
       console.error(err);
+      // 即使 AI 辨識失敗，依然保留剛拍下的照片卡片，讓使用者可手動新增或稍後重試
+      if (dataUrl) {
+        store.cards.unshift({
+          id: newCardId,
+          title: `新拍貨架照片 (${file.name})`,
+          imageUrl: dataUrl,
+          items: [],
+        });
+        saveState();
+        renderApp();
+      }
       alert(
         err.message === "NO_API_KEY"
           ? "尚未設定 Gemini API Key，請先至右上角設定輸入，或直接手動輸入商品價格。"
-          : `照片辨識失敗：${err.message}`
+          : `照片已加入，但 AI 自動辨識失敗：${err.message}`
       );
     }
   }
