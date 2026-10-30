@@ -992,8 +992,8 @@ async function imageUrlToBase64(url) {
 let isUserExplicitCancel = false;
 let currentAiAbortController = null;
 
-// 帶超時與手動取消支援的 fetch（超時設定 30 秒，清楚區分「使用者主動略過」與「網路逾時」）
-async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+// 帶超時與手動取消支援的 fetch（清楚區分「使用者主動略過」與「網路逾時」）
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
   const controller = new AbortController();
   currentAiAbortController = controller;
   let isTimeout = false;
@@ -1008,7 +1008,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (err) {
     if (isTimeout) {
-      throw new Error("API 回應逾時 (超過 30 秒)，請點「✨ AI 重新辨識」重試");
+      throw new Error(`連線逾時 (${Math.round(timeoutMs / 1000)} 秒)`);
     }
     if (isUserExplicitCancel) {
       throw new Error("USER_CANCEL");
@@ -1201,32 +1201,16 @@ async function fetchAvailableGeminiModelsList(apiKey) {
   }
 }
 
-// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價
+// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價（超速直連架構：不繞路、不浪費秒數查詢）
 async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   const apiKey = (state.settings.apiKey || "").trim();
   if (!apiKey) {
     throw new Error("NO_API_KEY");
   }
 
-  const promptText = `你是一位專精日本藥妝與商店採買的助手。請仔細看這張照片中的價錢牌與商品包裝，列出照片裡所有看得到價格或名稱的商品。
-注意：
-1. 日本標價通常會有較大的「未稅價(本体価格)」與較小的「含稅價(税込価格)」，請務必都抓出來（只填純數字整數）。
-2. 若價牌上只有一個價格，請依稅率（食品保健品如DHC為8%，一般醫藥美妝為10%）自動推算另一個價格。
-3. 請直接輸出 JSON 格式：
-{
-  "photoTitle": "貨架主題簡稱",
-  "items": [
-    {
-      "name": "商品日文與中文名稱",
-      "note": "容量或規格補充",
-      "untaxedPrice": 1000,
-      "taxedPrice": 1100,
-      "taxRate": 10
-    }
-  ]
-}`;
+  const promptText = `你是日本藥妝購物助手。請辨識照片中所有商品的日文/中文名稱與標價(未稅/含稅日幣數字)，回傳JSON格式：{"photoTitle":"主題","items":[{"name":"品名","note":"規格","untaxedPrice":1000,"taxedPrice":1100,"taxRate":10}]}`;
 
-  const schemaRequestBody = JSON.stringify({
+  const requestBody = JSON.stringify({
     contents: [
       {
         parts: [
@@ -1242,28 +1226,24 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     ],
     generationConfig: {
       responseMimeType: "application/json",
+      temperature: 0.1,
       thinkingConfig: {
         thinkingBudget: 0,
       },
-      temperature: 0.1,
     },
   });
 
-  // 先動態查詢該把 API Key 支援的標準視覺 Flash 模型
-  if (onStatusUpdate) onStatusUpdate("正在連線 AI 視覺引擎...");
-  const discoveredModels = await fetchAvailableGeminiModelsList(apiKey);
-
+  // 超速直連候選：以 gemini-2.0-flash / gemini-1.5-flash 最快速
   const candidateModels = [];
-  for (const m of discoveredModels) {
-    if (!candidateModels.includes(m)) candidateModels.push(m);
+  if (state.settings.preferredModel) {
+    candidateModels.push(state.settings.preferredModel);
   }
-  for (const fallback of [
+  for (const m of [
     "gemini-2.0-flash",
-    "gemini-flash-latest",
     "gemini-2.5-flash",
-    "gemini-3.8-flash",
+    "gemini-flash-latest",
   ]) {
-    if (!candidateModels.includes(fallback)) candidateModels.push(fallback);
+    if (!candidateModels.includes(m)) candidateModels.push(m);
   }
 
   let lastErrorMsg = "";
@@ -1271,7 +1251,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   for (let i = 0; i < candidateModels.length; i++) {
     const modelName = candidateModels[i];
     if (onStatusUpdate) {
-      onStatusUpdate(`正在用 AI (${modelName}) 辨識商品與標價...`);
+      onStatusUpdate(`正在用 AI (${modelName}) 快速判讀...`);
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
@@ -1279,14 +1259,15 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     )}`;
 
     try {
+      // 單次連線上限 12 秒，超時立刻換下一個模型，絕不多等
       const response = await fetchWithTimeout(
         endpoint,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: schemaRequestBody,
+          body: requestBody,
         },
-        22000
+        12000
       );
 
       if (response.ok) {
@@ -1297,19 +1278,25 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
           saveState();
           return parsed;
         }
-        lastErrorMsg = `模型 ${modelName} 回傳了 0 個品項`;
+        lastErrorMsg = `模型 ${modelName} 未產出品項`;
         continue;
       }
 
       const errText = await response.text();
       lastErrorMsg = `HTTP ${response.status}: ${errText.slice(0, 140)}`;
 
-      // 若是 API Key 本身無效 (API_KEY_INVALID)，直接停止重試並告知使用者
       if (errText.includes("API_KEY_INVALID")) {
         throw new Error("API Key 無效，請至右上角「⚙️ 設定」檢查金鑰是否複製完整");
       }
 
-      // 若 Google 404 訊息中明確提示了建議模型（例如 "use models/gemini-xxx"），自動排入下一個立即重試
+      // 429 額度/頻率限制（若不是每分鐘限制，而是該模型未開放免費層額度，嘗試切換下一個模型）
+      if (response.status === 429) {
+        lastErrorMsg = `模型 ${modelName} 額度受限 (429: ${errText.slice(0, 100)})`;
+        // 不直接拋出中斷，讓迴圈嘗試下一個候選模型（例如 2.0-flash 或 1.5-flash / flash-latest）
+        continue;
+      }
+
+      // 404 時自動擷取 Google 建議的新模型
       const suggestedMatch = errText.match(/models\/([a-zA-Z0-9._-]+)/g);
       if (suggestedMatch) {
         for (const raw of suggestedMatch) {
@@ -1331,7 +1318,100 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     }
   }
 
-  throw new Error(lastErrorMsg || "所有候選模型皆未回傳有效商品資料");
+  throw new Error(lastErrorMsg || "未能成功辨識商品資料，可點「✨ AI 重新辨識」或手動新增");
+}
+
+// 剪裁狀態管理
+let cropperState = {
+  img: null,
+  rawFile: null,
+  box: { x: 0, y: 0, w: 0, h: 0 },
+  imgRect: null,
+  dragMode: null,
+  startX: 0,
+  startY: 0,
+  startBox: null,
+  resolve: null,
+};
+
+function openCropper(file) {
+  return new Promise((resolve) => {
+    cropperState.resolve = resolve;
+    cropperState.rawFile = file;
+
+    const modal = document.getElementById("cropperModal");
+    const imgEl = document.getElementById("cropperImage");
+    const wrap = document.getElementById("cropperViewportWrap");
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imgEl.onload = () => {
+        modal.classList.remove("hidden");
+        const rect = imgEl.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        const offsetX = rect.left - wrapRect.left;
+        const offsetY = rect.top - wrapRect.top;
+
+        // 預設框置中選取中央 70% 區域
+        const w = Math.round(rect.width * 0.75);
+        const h = Math.round(rect.height * 0.65);
+        const x = Math.round(offsetX + (rect.width - w) / 2);
+        const y = Math.round(offsetY + (rect.height - h) / 2);
+
+        cropperState.img = imgEl;
+        cropperState.imgRect = { left: offsetX, top: offsetY, width: rect.width, height: rect.height };
+        cropperState.box = { x, y, w, h };
+        applyCropBoxStyle();
+      };
+      imgEl.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyCropBoxStyle() {
+  const boxEl = document.getElementById("cropBox");
+  if (!boxEl) return;
+  boxEl.style.left = `${cropperState.box.x}px`;
+  boxEl.style.top = `${cropperState.box.y}px`;
+  boxEl.style.width = `${cropperState.box.w}px`;
+  boxEl.style.height = `${cropperState.box.h}px`;
+}
+
+function getCroppedCanvasDataUrl() {
+  const img = cropperState.img;
+  if (!img || !img.naturalWidth || !cropperState.imgRect) return null;
+
+  const rect = cropperState.imgRect;
+  const box = cropperState.box;
+
+  const scaleX = img.naturalWidth / rect.width;
+  const scaleY = img.naturalHeight / rect.height;
+
+  const cropX = Math.max(0, (box.x - rect.left) * scaleX);
+  const cropY = Math.max(0, (box.y - rect.top) * scaleY);
+  const cropW = Math.min(img.naturalWidth - cropX, box.w * scaleX);
+  const cropH = Math.min(img.naturalHeight - cropY, box.h * scaleY);
+
+  const canvas = document.createElement("canvas");
+  let outW = cropW;
+  let outH = cropH;
+  const maxDim = 800;
+  if (outW > maxDim || outH > maxDim) {
+    if (outW > outH) {
+      outH = Math.round((outH * maxDim) / outW);
+      outW = maxDim;
+    } else {
+      outW = Math.round((outW * maxDim) / outH);
+      outH = maxDim;
+    }
+  }
+
+  canvas.width = Math.max(10, outW);
+  canvas.height = Math.max(10, outH);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.78);
 }
 
 // 處理使用者上傳新照片（先秒建照片卡片，再執行高解析 AI 辨識，並將狀態顯示於卡片上）
@@ -1343,6 +1423,9 @@ async function handlePhotoUpload(files) {
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
+    // 跳出直覺框選視窗（可自由拖曳重點，或點全圖直接辨識）
+    const cropChoice = await openCropper(file);
+
     banner.classList.remove("hidden");
     loadingText.textContent = `正在處理第 ${i + 1} / ${files.length} 張照片...`;
 
@@ -1351,8 +1434,10 @@ async function handlePhotoUpload(files) {
     let elapsedTimer = null;
 
     try {
-      // 使用 1280px 清晰圖檔供卡片顯示與 AI 辨識（確保日本藥妝價牌上的小字稅率與含稅價清晰可讀）
-      const dataUrl = await compressImageFile(file, 1280, 0.82);
+      // 若有剪裁則使用特寫圖（AI 秒回），若跳過剪裁則傳全圖
+      const dataUrl = cropChoice && cropChoice.croppedDataUrl
+        ? cropChoice.croppedDataUrl
+        : await compressImageFile(file, 800, 0.72);
       const base64Data = dataUrl.split(",")[1];
 
       newCard = {
@@ -1723,6 +1808,102 @@ function bindEvents() {
       closeConfirmModal();
       if (typeof fn === "function") fn();
     });
+
+  // 剪裁視窗按鈕與觸控拖曳綁定
+  const cropperModal = document.getElementById("cropperModal");
+  const cropBox = document.getElementById("cropBox");
+  const wrap = document.getElementById("cropperViewportWrap");
+
+  document.getElementById("btnCancelCrop").addEventListener("click", () => {
+    cropperModal.classList.add("hidden");
+    if (cropperState.resolve) cropperState.resolve(null);
+  });
+
+  document.getElementById("btnSkipCrop").addEventListener("click", () => {
+    cropperModal.classList.add("hidden");
+    if (cropperState.resolve) cropperState.resolve({ skip: true });
+  });
+
+  document.getElementById("btnConfirmCrop").addEventListener("click", () => {
+    const croppedDataUrl = getCroppedCanvasDataUrl();
+    cropperModal.classList.add("hidden");
+    if (cropperState.resolve) cropperState.resolve({ croppedDataUrl });
+  });
+
+  // 剪裁框觸控與滑鼠拖曳
+  const onPointerDown = (e) => {
+    const target = e.target;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    if (target.dataset && target.dataset.handle) {
+      cropperState.dragMode = target.dataset.handle;
+    } else if (target === cropBox || cropBox.contains(target)) {
+      cropperState.dragMode = "move";
+    } else {
+      return;
+    }
+
+    cropperState.startX = clientX;
+    cropperState.startY = clientY;
+    cropperState.startBox = { ...cropperState.box };
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e) => {
+    if (!cropperState.dragMode || !cropperState.startBox || !cropperState.imgRect) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - cropperState.startX;
+    const dy = clientY - cropperState.startY;
+
+    const sb = cropperState.startBox;
+    const r = cropperState.imgRect;
+    let { x, y, w, h } = sb;
+
+    if (cropperState.dragMode === "move") {
+      x = Math.max(r.left, Math.min(r.left + r.width - w, sb.x + dx));
+      y = Math.max(r.top, Math.min(r.top + r.height - h, sb.y + dy));
+    } else if (cropperState.dragMode === "se") {
+      w = Math.max(50, Math.min(r.left + r.width - x, sb.w + dx));
+      h = Math.max(40, Math.min(r.top + r.height - y, sb.h + dy));
+    } else if (cropperState.dragMode === "sw") {
+      const newX = Math.max(r.left, Math.min(sb.x + sb.w - 50, sb.x + dx));
+      w = sb.w + (sb.x - newX);
+      x = newX;
+      h = Math.max(40, Math.min(r.top + r.height - y, sb.h + dy));
+    } else if (cropperState.dragMode === "ne") {
+      const newY = Math.max(r.top, Math.min(sb.y + sb.h - 40, sb.y + dy));
+      h = sb.h + (sb.y - newY);
+      y = newY;
+      w = Math.max(50, Math.min(r.left + r.width - x, sb.w + dx));
+    } else if (cropperState.dragMode === "nw") {
+      const newX = Math.max(r.left, Math.min(sb.x + sb.w - 50, sb.x + dx));
+      const newY = Math.max(r.top, Math.min(sb.y + sb.h - 40, sb.y + dy));
+      w = sb.w + (sb.x - newX);
+      h = sb.h + (sb.y - newY);
+      x = newX;
+      y = newY;
+    }
+
+    cropperState.box = { x, y, w, h };
+    applyCropBoxStyle();
+  };
+
+  const onPointerUp = () => {
+    cropperState.dragMode = null;
+    cropperState.startBox = null;
+  };
+
+  if (wrap) {
+    wrap.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("mousemove", onPointerMove);
+    window.addEventListener("mouseup", onPointerUp);
+
+    wrap.addEventListener("touchstart", onPointerDown, { passive: false });
+    window.addEventListener("touchmove", onPointerMove, { passive: false });
+    window.addEventListener("touchend", onPointerUp);
+  }
 
   // 照片上傳
   const photoInput = document.getElementById("photoInput");

@@ -274,6 +274,30 @@
       </div>
     </div>
 
+    <!-- 圖片剪裁視窗 (純前端直覺手勢/滑鼠框選重點商品與價牌) -->
+    <div id="cropperModal" class="modal-backdrop hidden" style="z-index: 70">
+      <div class="modal-sheet cropper-sheet">
+        <div class="modal-header">
+          <h3>✂️ 框選重點商品與標價</h3>
+          <button type="button" id="btnCancelCrop" class="close-btn">✕</button>
+        </div>
+        <p class="cropper-tip">拖曳四角或框內，只保留「商品與價錢牌」辨識更精準秒回！</p>
+        <div class="cropper-viewport-wrap" id="cropperViewportWrap">
+          <img id="cropperImage" alt="待剪裁原圖" />
+          <div id="cropBox" class="crop-box">
+            <div class="crop-handle nw" data-handle="nw"></div>
+            <div class="crop-handle ne" data-handle="ne"></div>
+            <div class="crop-handle sw" data-handle="sw"></div>
+            <div class="crop-handle se" data-handle="se"></div>
+          </div>
+        </div>
+        <div class="modal-footer-actions cropper-actions">
+          <button type="button" id="btnSkipCrop" class="secondary-pill-btn">全圖直接辨識</button>
+          <button type="button" id="btnConfirmCrop" class="primary-btn" style="flex: 1.5">✓ 剪裁並送出辨識</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 輕量提示 Toast -->
     <div id="toastBanner" class="toast-banner hidden"></div>
 
