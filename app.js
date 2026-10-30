@@ -945,10 +945,9 @@ function renderSummaryDock() {
   document.getElementById("totalTaxedTwd").textContent = `(${formatTwd(totalTaxed)})`;
 }
 
-// 影像壓縮與 Base64 轉換（以最快速度輸出 800px 輕量圖，縮短傳輸至 1~2 秒並確保標籤清晰）
-function compressImageFile(file, maxDim = 800, quality = 0.65) {
+// 影像壓縮與 Base64 轉換（手機極速輕量化：壓制在 600px / 0.6 品質，傳輸僅 40~60KB，2秒內秒傳秒回）
+function compressImageFile(file, maxDim = 600, quality = 0.6) {
   return new Promise((resolve, reject) => {
-    // 支援 createImageBitmap（現代手機瀏覽器硬體加速解碼）
     if (window.createImageBitmap) {
       createImageBitmap(file)
         .then((bitmap) => {
@@ -1423,7 +1422,7 @@ function getCroppedCanvasDataUrl() {
   const canvas = document.createElement("canvas");
   let outW = cropW;
   let outH = cropH;
-  const maxDim = 800;
+  const maxDim = 600;
   if (outW > maxDim || outH > maxDim) {
     if (outW > outH) {
       outH = Math.round((outH * maxDim) / outW);
@@ -1438,7 +1437,7 @@ function getCroppedCanvasDataUrl() {
   canvas.height = Math.max(10, outH);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.78);
+  return canvas.toDataURL("image/jpeg", 0.65);
 }
 
 // 處理使用者上傳新照片（先秒建照片卡片，再執行高解析 AI 辨識，並將狀態顯示於卡片上）
@@ -1464,7 +1463,7 @@ async function handlePhotoUpload(files) {
       // 若有剪裁則使用特寫圖（AI 秒回），若跳過剪裁則傳全圖
       const dataUrl = cropChoice && cropChoice.croppedDataUrl
         ? cropChoice.croppedDataUrl
-        : await compressImageFile(file, 800, 0.72);
+        : await compressImageFile(file, 600, 0.6);
       const base64Data = dataUrl.split(",")[1];
 
       newCard = {
