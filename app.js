@@ -741,6 +741,14 @@ function renderPhotoCards() {
     `
       : "";
 
+    const hintText = card.aiStatus
+      ? card.aiStatus
+      : `點擊下方商品即可勾選加入本店購物籃（共 ${card.items.length} 項）`;
+    const hintColorStyle =
+      card.aiStatus && card.aiStatus.startsWith("⚠️")
+        ? 'style="color: var(--accent-persimmon); font-weight: 700;"'
+        : "";
+
     cardEl.innerHTML = `
       <div class="photo-card-header">
         ${thumbHtml}
@@ -748,7 +756,7 @@ function renderPhotoCards() {
           <div class="photo-title-row">
             <h2 class="photo-title">${escapeHtml(card.title)}</h2>
           </div>
-          <p class="photo-hint">點擊下方商品即可勾選加入本店購物籃（共 ${card.items.length} 項）</p>
+          <p class="photo-hint" ${hintColorStyle}>${escapeHtml(hintText)}</p>
           <div class="photo-card-actions">
             <button class="mini-btn btn-add-subitem" data-card-id="${card.id}">＋ 新增此圖商品</button>
             ${
@@ -998,10 +1006,91 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 18000) {
   }
 }
 
-// 從 Gemini 回傳結構中安全提取 JSON（自動跳過 Gemini 2.5/3 的 thought 思考段落）
+// 將含有貨幣符號或逗號的價格字串轉為正整數
+function parsePriceNumber(val) {
+  if (typeof val === "number" && !isNaN(val)) return Math.round(val);
+  if (!val) return 0;
+  const cleaned = String(val).replace(/[,，\s¥￥円元]/g, "");
+  const match = cleaned.match(/\d+(\.\d+)?/);
+  return match ? Math.round( parseFloat(match[0]) ) : 0;
+}
+
+// 將各種不同 AI 回傳的 JSON 格式標準化為 { photoTitle, items }
+function normalizeParsedShelfData(rawParsed) {
+  if (!rawParsed) return { photoTitle: "", items: [] };
+
+  let rawList = [];
+  let photoTitle = "";
+
+  if (Array.isArray(rawParsed)) {
+    rawList = rawParsed;
+  } else if (typeof rawParsed === "object") {
+    photoTitle =
+      rawParsed.photoTitle ||
+      rawParsed.title ||
+      rawParsed.store ||
+      "";
+    if (Array.isArray(rawParsed.items)) {
+      rawList = rawParsed.items;
+    } else if (Array.isArray(rawParsed.products)) {
+      rawList = rawParsed.products;
+    } else if (Array.isArray(rawParsed.data)) {
+      rawList = rawParsed.data;
+    } else if (rawParsed.name && (rawParsed.untaxedPrice || rawParsed.taxedPrice || rawParsed.price)) {
+      rawList = [rawParsed];
+    }
+  }
+
+  const normalizedItems = rawList
+    .map((it, idx) => {
+      if (!it || typeof it !== "object") return null;
+      const name = String(
+        it.name || it.productName || it.title || it.item || ""
+      ).trim();
+      const note = String(
+        it.note || it.spec || it.description || it.capacity || ""
+      ).trim();
+      const rateNum = parsePriceNumber(it.taxRate);
+      const taxRate = rateNum === 8 ? 8 : 10;
+
+      let untaxed = parsePriceNumber(
+        it.untaxedPrice ?? it.priceExcludingTax ?? it.basePrice ?? it.price
+      );
+      let taxed = parsePriceNumber(
+        it.taxedPrice ?? it.priceIncludingTax ?? it.taxIncludedPrice
+      );
+
+      if (untaxed > 0 && taxed === 0) {
+        taxed = Math.round(untaxed * (1 + taxRate / 100));
+      } else if (taxed > 0 && untaxed === 0) {
+        untaxed = Math.round(taxed / (1 + taxRate / 100));
+      }
+
+      if (!name && untaxed === 0 && taxed === 0) return null;
+
+      return {
+        id: `item_${Date.now()}_${idx}`,
+        name: name || `商品 #${idx + 1}`,
+        note,
+        untaxedPrice: untaxed,
+        taxedPrice: taxed,
+        taxRate,
+        selected: false,
+        qty: 1,
+      };
+    })
+    .filter(Boolean);
+
+  return { photoTitle, items: normalizedItems };
+}
+
+// 從 Gemini 回傳結構中安全提取 JSON（自動跳過 Gemini 2.5/3 的 thought 思考段落，支援 Object 與 Array）
 function extractJsonFromGeminiResult(result) {
   const parts = result?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts) || parts.length === 0) return {};
+  if (!Array.isArray(parts) || parts.length === 0) {
+    const reason = result?.candidates?.[0]?.finishReason || result?.promptFeedback?.blockReason || "EMPTY_PARTS";
+    throw new Error(`AI 回傳內容為空 (${reason})`);
+  }
 
   // 優先取非 thought 的最後一個文字段落
   const nonThoughtParts = parts.filter((p) => !p.thought && typeof p.text === "string");
@@ -1012,26 +1101,38 @@ function extractJsonFromGeminiResult(result) {
 
   for (const raw of candidateTexts) {
     const cleaned = raw
-      .replace(/^```json\s*/i, "")
-      .replace(/```\s*$/i, "")
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
       .trim();
     try {
-      return JSON.parse(cleaned);
+      return normalizeParsedShelfData(JSON.parse(cleaned));
     } catch (_) {
+      // 嘗試擷取 {...} 或 [...]
       const firstBrace = cleaned.indexOf("{");
       const lastBrace = cleaned.lastIndexOf("}");
       if (firstBrace !== -1 && lastBrace > firstBrace) {
         try {
-          return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+          return normalizeParsedShelfData(
+            JSON.parse(cleaned.slice(firstBrace, lastBrace + 1))
+          );
         } catch (_2) {}
+      }
+      const firstBracket = cleaned.indexOf("[");
+      const lastBracket = cleaned.lastIndexOf("]");
+      if (firstBracket !== -1 && lastBracket > firstBracket) {
+        try {
+          return normalizeParsedShelfData(
+            JSON.parse(cleaned.slice(firstBracket, lastBracket + 1))
+          );
+        } catch (_3) {}
       }
     }
   }
-  return {};
+  throw new Error("無法解析 AI 回傳的價格格式");
 }
 
-// 動態查詢該 API Key 可用的最新 Gemini Vision 模型
-async function fetchAvailableGeminiModel(apiKey) {
+// 動態查詢該 API Key 可用的標準視覺 Gemini Flash 模型清單（依穩定與新舊排序）
+async function fetchAvailableGeminiModelsList(apiKey) {
   try {
     const resp = await fetchWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
@@ -1040,7 +1141,7 @@ async function fetchAvailableGeminiModel(apiKey) {
       {},
       5000
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) return [];
     const data = await resp.json();
     const models = Array.isArray(data.models) ? data.models : [];
     const supported = models
@@ -1051,36 +1152,59 @@ async function fetchAvailableGeminiModel(apiKey) {
       )
       .map((m) => String(m.name || "").replace(/^models\//, ""));
 
-    // 優先選擇最新數字版本 flash 模型（避免選到慢速 thinking preview 或 tts/image 模型）
-    const flashCandidates = supported.filter(
+    // 過濾掉非標準圖文辨識的模型（排除 audio/tts/image/embedding/live/thinking/8b/gemma）
+    const validVisionModels = supported.filter(
       (n) =>
+        n.startsWith("gemini-") &&
         n.includes("flash") &&
-        !n.includes("8b") &&
+        !n.includes("audio") &&
         !n.includes("tts") &&
         !n.includes("image") &&
-        !n.includes("thinking")
+        !n.includes("live") &&
+        !n.includes("thinking") &&
+        !n.includes("8b")
     );
-    if (flashCandidates.length > 0) {
-      // 取列表中排序較新（通常在後方）的穩定 flash 模型
-      return flashCandidates[flashCandidates.length - 1];
-    }
-    return supported.find((n) => n.includes("gemini")) || null;
+
+    // 優先將標準穩定版（例如 gemini-3.8-flash, gemini-3.0-flash, gemini-2.5-flash, gemini-2.0-flash, gemini-flash-latest）排最前面
+    validVisionModels.sort((a, b) => {
+      const isCleanA = /^gemini-\d+(\.\d+)?-flash$/.test(a) ? 1 : 0;
+      const isCleanB = /^gemini-\d+(\.\d+)?-flash$/.test(b) ? 1 : 0;
+      if (isCleanA !== isCleanB) return isCleanB - isCleanA;
+      return b.localeCompare(a);
+    });
+
+    return validVisionModels;
   } catch (_) {
-    return null;
+    return [];
   }
 }
 
-// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價（具備進度顯示、超時保護與 404 自動切換模型）
+// 呼叫 Gemini Vision API 辨識貨架上的多個商品與未稅/含稅價
 async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   const apiKey = (state.settings.apiKey || "").trim();
   if (!apiKey) {
     throw new Error("NO_API_KEY");
   }
 
-  const promptText = `請辨識這張日本商店貨架照片中的所有商品與標價，直接回傳 JSON：
-{"photoTitle":"貨架簡短主題","items":[{"name":"日文原名與中文簡稱","note":"容量或規格","untaxedPrice":未稅日幣整數,"taxedPrice":含稅日幣整數,"taxRate":10或8}]}`;
+  const promptText = `你是一位專精日本藥妝與商店採買的助手。請仔細看這張照片中的價錢牌與商品包裝，列出照片裡所有看得到價格或名稱的商品。
+注意：
+1. 日本標價通常會有較大的「未稅價(本体価格)」與較小的「含稅價(税込価格)」，請務必都抓出來（只填純數字整數）。
+2. 若價牌上只有一個價格，請依稅率（食品保健品如DHC為8%，一般醫藥美妝為10%）自動推算另一個價格。
+3. 請直接輸出 JSON 格式：
+{
+  "photoTitle": "貨架主題簡稱",
+  "items": [
+    {
+      "name": "商品日文與中文名稱",
+      "note": "容量或規格補充",
+      "untaxedPrice": 1000,
+      "taxedPrice": 1100,
+      "taxRate": 10
+    }
+  ]
+}`;
 
-  const requestBody = JSON.stringify({
+  const schemaRequestBody = JSON.stringify({
     contents: [
       {
         parts: [
@@ -1096,87 +1220,118 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     ],
     generationConfig: {
       responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          photoTitle: { type: "STRING" },
+          items: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING" },
+                note: { type: "STRING" },
+                untaxedPrice: { type: "INTEGER" },
+                taxedPrice: { type: "INTEGER" },
+                taxRate: { type: "INTEGER" },
+              },
+              required: ["name", "untaxedPrice", "taxedPrice"],
+            },
+          },
+        },
+        required: ["items"],
+      },
       temperature: 0.1,
     },
   });
 
-  // 先快速查詢帳號可用模型（若尚未快取），避免盲目上傳圖片到 404 模型浪費時間
-  if (!state.settings.preferredModel) {
-    if (onStatusUpdate) onStatusUpdate("正在自動偵測您的金鑰支援的最快模型...");
-    const discoveredFirst = await fetchAvailableGeminiModel(apiKey);
-    if (discoveredFirst) {
-      state.settings.preferredModel = discoveredFirst;
-      saveState();
-    }
-  }
+  // 先動態查詢該把 API Key 支援的標準視覺 Flash 模型
+  if (onStatusUpdate) onStatusUpdate("正在連線 AI 視覺引擎...");
+  const discoveredModels = await fetchAvailableGeminiModelsList(apiKey);
 
   const candidateModels = [];
-  if (state.settings.preferredModel) {
-    candidateModels.push(state.settings.preferredModel);
-  }
-  for (const m of [
-    "gemini-2.0-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash",
-  ]) {
+  for (const m of discoveredModels) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
+  for (const fallback of [
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-3.0-flash",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+  ]) {
+    if (!candidateModels.includes(fallback)) candidateModels.push(fallback);
+  }
 
-  let lastStatus = 0;
-  let lastErrorText = "";
+  let lastErrorMsg = "";
 
   for (let i = 0; i < candidateModels.length; i++) {
     const modelName = candidateModels[i];
     if (onStatusUpdate) {
-      onStatusUpdate(`正在用 AI (${modelName}) 辨識商品與未稅/含稅價...`);
+      onStatusUpdate(`正在用 AI (${modelName}) 辨識商品與標價...`);
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
       apiKey
     )}`;
 
-    const response = await fetchWithTimeout(
-      endpoint,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      },
-      20000
-    );
+    try {
+      const response = await fetchWithTimeout(
+        endpoint,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: schemaRequestBody,
+        },
+        22000
+      );
 
-    if (response.ok) {
-      if (state.settings.preferredModel !== modelName) {
-        state.settings.preferredModel = modelName;
-        saveState();
+      if (response.ok) {
+        const result = await response.json();
+        const parsed = extractJsonFromGeminiResult(result);
+        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          state.settings.preferredModel = modelName;
+          saveState();
+          return parsed;
+        }
+        lastErrorMsg = `模型 ${modelName} 回傳了 0 個品項`;
+        continue;
       }
-      const result = await response.json();
-      return extractJsonFromGeminiResult(result);
-    }
 
-    lastStatus = response.status;
-    lastErrorText = await response.text();
+      const errText = await response.text();
+      lastErrorMsg = `HTTP ${response.status}: ${errText.slice(0, 140)}`;
 
-    if (response.status !== 404) {
-      break;
-    }
+      // 若是 API Key 本身無效 (API_KEY_INVALID)，直接停止重試並告知使用者
+      if (errText.includes("API_KEY_INVALID")) {
+        throw new Error("API Key 無效，請至右上角「⚙️ 設定」檢查金鑰是否複製完整");
+      }
 
-    // 從 Google 404 訊息中自動擷取建議的新模型名稱（例如 "use models/gemini-xxx"）
-    const suggestedMatch = lastErrorText.match(/models\/([a-zA-Z0-9._-]+)/g);
-    if (suggestedMatch) {
-      for (const raw of suggestedMatch) {
-        const cleanName = raw.replace(/^models\//, "");
-        if (cleanName && !candidateModels.includes(cleanName)) {
-          candidateModels.splice(i + 1, 0, cleanName);
+      // 若 Google 404 訊息中明確提示了建議模型（例如 "use models/gemini-xxx"），自動排入下一個立即重試
+      const suggestedMatch = errText.match(/models\/([a-zA-Z0-9._-]+)/g);
+      if (suggestedMatch) {
+        for (const raw of suggestedMatch) {
+          const cleanName = raw.replace(/^models\//, "");
+          if (cleanName && !candidateModels.includes(cleanName)) {
+            candidateModels.splice(i + 1, 0, cleanName);
+          }
         }
       }
+    } catch (innerErr) {
+      if (
+        innerErr.name === "AbortError" ||
+        String(innerErr.message).includes("USER_CANCEL") ||
+        String(innerErr.message).includes("API Key 無效")
+      ) {
+        throw innerErr;
+      }
+      lastErrorMsg = innerErr.message || String(innerErr);
     }
   }
 
-  throw new Error(`Gemini API (${lastStatus}): ${lastErrorText.slice(0, 180)}`);
+  throw new Error(lastErrorMsg || "所有候選模型皆未回傳有效商品資料");
 }
 
-// 處理使用者上傳新照片（先秒建照片卡片，再背景執行 AI 辨識，絕不卡死畫面）
+// 處理使用者上傳新照片（先秒建照片卡片，再執行高解析 AI 辨識，並將狀態顯示於卡片上）
 async function handlePhotoUpload(files) {
   if (!files || files.length === 0) return;
   const store = getCurrentStore();
@@ -1186,23 +1341,24 @@ async function handlePhotoUpload(files) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     banner.classList.remove("hidden");
-    loadingText.textContent = `正在壓縮處理第 ${i + 1} / ${files.length} 張照片...`;
+    loadingText.textContent = `正在處理第 ${i + 1} / ${files.length} 張照片...`;
 
     const newCardId = "card_" + Date.now() + "_" + i;
     let newCard = null;
     let elapsedTimer = null;
 
     try {
-      // 1. 卡片顯示用縮圖 (1024px) 與 AI 快速傳輸用輕量圖 (800px，大幅加快行動網路上傳速度)
-      const dataUrl = await compressImageFile(file, 1024, 0.78);
-      const aiDataUrl = await compressImageFile(file, 800, 0.7);
-      const base64Data = aiDataUrl.split(",")[1];
+      // 使用 1280px 清晰圖檔供卡片顯示與 AI 辨識（確保日本藥妝價牌上的小字稅率與含稅價清晰可讀）
+      const dataUrl = await compressImageFile(file, 1280, 0.82);
+      const base64Data = dataUrl.split(",")[1];
 
-      // 2. 立即把照片卡片放到畫面上，不等 AI 回應就能先看到照片！
       newCard = {
         id: newCardId,
         title: `新上傳貨架 (${file.name})`,
         imageUrl: dataUrl,
+        aiStatus: state.settings.apiKey
+          ? "⏳ AI 正在辨識此照片中的商品與價格..."
+          : "",
         items: [],
       };
       store.cards.unshift(newCard);
@@ -1215,7 +1371,6 @@ async function handlePhotoUpload(files) {
         continue;
       }
 
-      // 3. 啟動秒數計時顯示，讓使用者清楚看到進度並可隨時點「略過 AI」
       let seconds = 0;
       let currentStageText = "正在用 AI 辨識照片中的商品與未稅/含稅價...";
       loadingText.textContent = currentStageText;
@@ -1229,40 +1384,37 @@ async function handlePhotoUpload(files) {
         loadingText.textContent = `${currentStageText} (${seconds}s)`;
       });
 
-      const items = Array.isArray(parsed.items)
-        ? parsed.items.map((it, idx) => ({
-            id: `item_${Date.now()}_${idx}`,
-            name: it.name || "未命名商品",
-            note: it.note || "",
-            untaxedPrice: Math.round(Number(it.untaxedPrice) || 0),
-            taxedPrice: Math.round(
-              Number(it.taxedPrice) ||
-                Math.round((Number(it.untaxedPrice) || 0) * 1.1)
-            ),
-            taxRate: Number(it.taxRate) === 8 ? 8 : 10,
-            selected: false,
-            qty: 1,
-          }))
-        : [];
-
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
       newCard.title = parsed.photoTitle || newCard.title;
       newCard.items = items;
+      newCard.aiStatus =
+        items.length > 0
+          ? ""
+          : "⚠️ AI 未在圖中找到清晰標價，請點「✨ AI 重新辨識」或下方手動新增品項";
       saveState();
       renderApp();
       showToast(
         items.length > 0
           ? `✨ 成功辨識出 ${items.length} 項商品！`
-          : "照片已加入（未偵測到標價，可點下方新增品項）"
+          : "未偵測到標價，可點下方手動新增品項"
       );
     } catch (err) {
       console.error(err);
       if (err.name === "AbortError" || String(err.message).includes("USER_CANCEL")) {
-        showToast("已略過 AI 辨識，請手動輸入商品價格");
-        if (newCard) openItemModal(newCard.id, null);
-      } else if (String(err.message).includes("TIMEOUT")) {
-        showToast("AI 回應逾時 (超過20秒)，照片已保留，可點「✨ AI 重新辨識」或手動新增");
+        if (newCard) {
+          newCard.aiStatus = "已手動略過 AI 辨識，可點下方「＋ 新增這張照片的品項」";
+          saveState();
+          renderApp();
+          openItemModal(newCard.id, null);
+        }
+        showToast("已略過 AI 辨識");
       } else {
-        showToast(`照片已保留，AI 辨識失敗：${err.message}`);
+        if (newCard) {
+          newCard.aiStatus = `⚠️ AI 辨識未成功 (${err.message})，請點「✨ AI 重新辨識」或手動新增`;
+          saveState();
+          renderApp();
+        }
+        showToast(`AI 辨識未成功：${err.message}`);
       }
     } finally {
       if (elapsedTimer) clearInterval(elapsedTimer);
@@ -1281,6 +1433,9 @@ async function rescanCardWithAI(card) {
   const loadingText = document.getElementById("aiLoadingText");
   banner.classList.remove("hidden");
 
+  card.aiStatus = "⏳ AI 正在重新辨識此照片...";
+  renderApp();
+
   let seconds = 0;
   let currentStageText = `正在重新辨識「${card.title}」...`;
   loadingText.textContent = currentStageText;
@@ -1297,23 +1452,21 @@ async function rescanCardWithAI(card) {
     });
     if (Array.isArray(parsed.items) && parsed.items.length > 0) {
       card.title = parsed.photoTitle || card.title;
-      card.items = parsed.items.map((it, idx) => ({
-        id: `item_${Date.now()}_${idx}`,
-        name: it.name || "商品",
-        note: it.note || "",
-        untaxedPrice: Math.round(Number(it.untaxedPrice) || 0),
-        taxedPrice: Math.round(Number(it.taxedPrice) || 0),
-        taxRate: Number(it.taxRate) === 8 ? 8 : 10,
-        selected: false,
-        qty: 1,
-      }));
+      card.items = parsed.items;
+      card.aiStatus = "";
       saveState();
       renderApp();
       showToast(`✨ 重新辨識完成，共 ${card.items.length} 項商品！`);
     } else {
-      showToast("AI 未在照片中找到明確標價，可點選「＋ 新增這張照片的品項」");
+      card.aiStatus = "⚠️ AI 未在照片中找到明確標價，可點下方手動新增品項";
+      saveState();
+      renderApp();
+      showToast("AI 未在照片中找到明確標價");
     }
   } catch (err) {
+    card.aiStatus = `⚠️ AI 辨識失敗 (${err.message})`;
+    saveState();
+    renderApp();
     showToast(`AI 重新辨識未完成：${err.message}`);
   } finally {
     clearInterval(elapsedTimer);
