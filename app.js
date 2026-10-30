@@ -1,4 +1,8 @@
 const STORAGE_KEY = "jp_travel_shopping_notebook_v1";
+const SETTINGS_STORAGE_KEY = "jp_travel_shopping_settings_v1";
+const IDB_NAME = "jp_travel_shopping_db";
+const IDB_VERSION = 1;
+const IDB_STORE = "notebook_state";
 
 const DEFAULT_SETTINGS = {
   apiKey: "",
@@ -341,13 +345,15 @@ function createBuiltInStores() {
   ];
 }
 
-// 狀態管理
+// 狀態管理（IndexedDB 大容量儲存 + LocalStorage 自動遷移與設定備援）
 let state = loadState();
 let filterSelectedOnly = false;
 let currentModalTaxRate = 10;
+let idbDatabase = null;
 
 function loadState() {
   try {
+    // 優先讀取舊版完整 LocalStorage 資料（供首次無縫升級遷移至 IndexedDB）
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -358,6 +364,17 @@ function loadState() {
           stores: parsed.stores,
         };
       }
+    }
+    // 讀取輕量設定檔
+    const rawSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (rawSettings) {
+      const parsedSettings = JSON.parse(rawSettings);
+      const stores = createBuiltInStores();
+      return {
+        settings: { ...DEFAULT_SETTINGS, ...(parsedSettings.settings || {}) },
+        currentStoreId: parsedSettings.currentStoreId || stores[0].id,
+        stores,
+      };
     }
   } catch (err) {
     console.warn("讀取 LocalStorage 失敗，使用預設資料:", err);
@@ -370,11 +387,130 @@ function loadState() {
   };
 }
 
-function saveState() {
+function openAppDatabase() {
+  return new Promise((resolve, reject) => {
+    if (idbDatabase) {
+      resolve(idbDatabase);
+      return;
+    }
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB not supported"));
+      return;
+    }
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = (ev) => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = (ev) => {
+      idbDatabase = ev.target.result;
+      resolve(idbDatabase);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbLoadState() {
+  return openAppDatabase().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, "readonly");
+        const store = tx.objectStore(IDB_STORE);
+        const getReq = store.get(STORAGE_KEY);
+        getReq.onsuccess = () => resolve(getReq.result || null);
+        getReq.onerror = () => reject(getReq.error);
+      })
+  );
+}
+
+function idbSaveState(currentState) {
+  return openAppDatabase().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        const store = tx.objectStore(IDB_STORE);
+        const putReq = store.put(currentState, STORAGE_KEY);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      })
+  );
+}
+
+async function initHighCapacityStorage() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
+    const savedInIdb = await idbLoadState();
+    if (
+      savedInIdb &&
+      Array.isArray(savedInIdb.stores) &&
+      savedInIdb.stores.length > 0
+    ) {
+      state = {
+        settings: { ...DEFAULT_SETTINGS, ...(savedInIdb.settings || {}) },
+        currentStoreId:
+          savedInIdb.currentStoreId || savedInIdb.stores[0].id,
+        stores: savedInIdb.stores,
+      };
+      renderApp();
+    } else {
+      // 首次升級：將現有 state 寫入大容量 IndexedDB，並釋放舊版 5MB LocalStorage 圖片佔用
+      await idbSaveState(state);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (_) {}
+    }
   } catch (err) {
-    alert("瀏覽器儲存空間已滿！建議刪除部分不需要的舊照片卡片。");
+    console.warn("IndexedDB 初始化備援:", err);
+  }
+}
+
+function saveState() {
+  // 1. 輕量設定寫入 LocalStorage (<1KB，永不爆滿)
+  try {
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        settings: state.settings,
+        currentStoreId: state.currentStoreId,
+      })
+    );
+  } catch (_) {}
+
+  // 2. 完整照片與商品清單寫入大容量 IndexedDB (支援數百 MB ~ 數 GB)
+  idbSaveState(state).catch((err) => {
+    console.warn("IndexedDB 寫入失敗，嘗試降級寫入 LocalStorage:", err);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (_) {
+      showToast("儲存空間不足，請清理部分不需要的照片");
+    }
+  });
+}
+
+async function updateStorageQuotaDisplay() {
+  const el = document.getElementById("storageStatusText");
+  if (!el) return;
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      if (est && est.quota) {
+        const usedMb = ((est.usage || 0) / (1024 * 1024)).toFixed(1);
+        const quotaMb = Math.round(est.quota / (1024 * 1024));
+        const quotaDisplay =
+          quotaMb >= 1024
+            ? `${(quotaMb / 1024).toFixed(1)} GB`
+            : `${quotaMb} MB`;
+        el.textContent = `已用 ${usedMb} MB / 可用上限約 ${quotaDisplay}`;
+        return;
+      }
+    }
+    el.textContent = "已啟用（支援數百張以上照片）";
+  } catch (_) {
+    el.textContent = "已啟用（支援數百張以上照片）";
   }
 }
 
@@ -613,11 +749,15 @@ function renderPhotoCards() {
     }
 
     cardEl.querySelector(".btn-delete-card").addEventListener("click", () => {
-      if (confirm(`確定要刪除「${card.title}」這張照片與裡面的商品嗎？`)) {
-        store.cards = store.cards.filter((c) => c.id !== card.id);
-        saveState();
-        renderApp();
-      }
+      showConfirmModal(
+        `確定要刪除「${card.title}」這張照片與裡面的商品嗎？`,
+        () => {
+          store.cards = store.cards.filter((c) => c.id !== card.id);
+          saveState();
+          renderApp();
+          showToast("已刪除照片卡片");
+        }
+      );
     });
 
     const listEl = cardEl.querySelector(".product-list");
@@ -697,11 +837,12 @@ function renderPhotoCards() {
       // 刪除單一品項按鈕
       itemEl.querySelector(".delete-item-btn").addEventListener("click", (e) => {
         e.stopPropagation();
-        if (confirm(`確定要刪除「${item.name}」這個品項嗎？`)) {
+        showConfirmModal(`確定要刪除「${item.name}」這個品項嗎？`, () => {
           card.items = card.items.filter((i) => i.id !== item.id);
           saveState();
           renderApp();
-        }
+          showToast("已刪除品項");
+        });
       });
 
       // 數量減少
@@ -1039,6 +1180,7 @@ function openSettingsModal() {
     state.settings.exchangeRate;
   document.getElementById("inputTaxFreeThreshold").value =
     state.settings.taxFreeThreshold;
+  updateStorageQuotaDisplay();
   document.getElementById("settingsModal").classList.remove("hidden");
 }
 
@@ -1098,8 +1240,116 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+let pendingConfirmAction = null;
+let toastTimer = null;
+
+function showToast(msg) {
+  const banner = document.getElementById("toastBanner");
+  if (!banner) return;
+  banner.textContent = msg;
+  banner.classList.remove("hidden");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    banner.classList.add("hidden");
+  }, 2400);
+}
+
+function showConfirmModal(message, onConfirm) {
+  const modal = document.getElementById("confirmModal");
+  const msgEl = document.getElementById("confirmModalMessage");
+  if (!modal || !msgEl) {
+    if (typeof onConfirm === "function") onConfirm();
+    return;
+  }
+  msgEl.textContent = message;
+  pendingConfirmAction = onConfirm;
+  modal.classList.remove("hidden");
+}
+
+function closeConfirmModal() {
+  const modal = document.getElementById("confirmModal");
+  if (modal) modal.classList.add("hidden");
+  pendingConfirmAction = null;
+}
+
+// 開啟商店管理視窗 (mode: 'add' | 'edit')
+function openStoreModal(mode) {
+  const modal = document.getElementById("storeModal");
+  const modeInput = document.getElementById("storeModalMode");
+  const titleEl = document.getElementById("storeModalTitle");
+  const nameInput = document.getElementById("inputStoreName");
+  const dangerZone = document.getElementById("storeDangerZone");
+
+  modeInput.value = mode;
+  if (mode === "add") {
+    titleEl.textContent = "＋ 新增商店";
+    nameInput.value = "";
+    dangerZone.classList.add("hidden");
+  } else {
+    const store = getCurrentStore();
+    titleEl.textContent = `🏪 管理商店：${store.name}`;
+    nameInput.value = store.name;
+    dangerZone.classList.remove("hidden");
+  }
+
+  modal.classList.remove("hidden");
+  setTimeout(() => nameInput.focus(), 50);
+}
+
+// 清空當前商店的全部照片與商品資料
+function clearCurrentStoreData() {
+  const store = getCurrentStore();
+  showConfirmModal(
+    `確定要清空「${store.name}」店內的所有照片與商品資料嗎？\n（商店名稱會保留，內容將全部清空）`,
+    () => {
+      store.cards = [];
+      saveState();
+      document.getElementById("storeModal").classList.add("hidden");
+      renderApp();
+      showToast(`已清空「${store.name}」全部資料`);
+    }
+  );
+}
+
+// 刪除當前商店
+function deleteCurrentStore() {
+  const store = getCurrentStore();
+  showConfirmModal(
+    `確定要刪除「${store.name}」這家商店與其所有資料嗎？`,
+    () => {
+      if (state.stores.length <= 1) {
+        // 若只剩最後一家商店，直接重置為空白商店
+        store.name = "新商店";
+        store.cards = [];
+      } else {
+        state.stores = state.stores.filter((s) => s.id !== store.id);
+        state.currentStoreId = state.stores[0].id;
+      }
+      saveState();
+      document.getElementById("storeModal").classList.add("hidden");
+      renderApp();
+      showToast("已刪除商店");
+    }
+  );
+}
+
 // 綁定所有全域事件
 function bindEvents() {
+  // 確認視窗事件
+  document
+    .getElementById("btnCloseConfirmModal")
+    .addEventListener("click", closeConfirmModal);
+  document
+    .getElementById("btnCancelConfirm")
+    .addEventListener("click", closeConfirmModal);
+  document
+    .getElementById("btnAcceptConfirm")
+    .addEventListener("click", () => {
+      const fn = pendingConfirmAction;
+      closeConfirmModal();
+      if (typeof fn === "function") fn();
+    });
+
   // 照片上傳
   const photoInput = document.getElementById("photoInput");
   photoInput.addEventListener("change", (e) => {
@@ -1107,45 +1357,61 @@ function bindEvents() {
     photoInput.value = "";
   });
 
-  // 新增商店
+  // 新增商店按鈕 -> 開啟自訂商店視窗
   document.getElementById("btnAddStore").addEventListener("click", () => {
-    const name = prompt("請輸入商店名稱（例如：松本清 心齋橋店、唐吉訶德）：");
-    if (name && name.trim()) {
+    openStoreModal("add");
+  });
+
+  // 改店名 / 刪除按鈕 -> 開啟自訂商店視窗
+  document.getElementById("btnRenameStore").addEventListener("click", () => {
+    openStoreModal("edit");
+  });
+
+  // 主畫面直接點擊「清空本店資料」
+  document
+    .getElementById("btnClearStoreData")
+    .addEventListener("click", clearCurrentStoreData);
+
+  // 商店視窗內按鈕
+  document
+    .getElementById("btnCloseStoreModal")
+    .addEventListener("click", () => {
+      document.getElementById("storeModal").classList.add("hidden");
+    });
+
+  document.getElementById("btnSaveStoreName").addEventListener("click", () => {
+    const mode = document.getElementById("storeModalMode").value;
+    const name = document.getElementById("inputStoreName").value.trim();
+    if (!name) {
+      showToast("請輸入商店名稱！");
+      return;
+    }
+    if (mode === "add") {
       const newStore = {
         id: "store_" + Date.now(),
-        name: name.trim(),
+        name,
         cards: [],
       };
       state.stores.push(newStore);
       state.currentStoreId = newStore.id;
-      saveState();
-      renderApp();
+      showToast(`已新增商店「${name}」`);
+    } else {
+      const store = getCurrentStore();
+      store.name = name;
+      showToast(`店名已更新為「${name}」`);
     }
+    saveState();
+    document.getElementById("storeModal").classList.add("hidden");
+    renderApp();
   });
 
-  // 改店名或刪除商店
-  document.getElementById("btnRenameStore").addEventListener("click", () => {
-    const store = getCurrentStore();
-    const action = prompt(
-      `目前商店：「${store.name}」\n請輸入新店名，或輸入 DELETE 刪除此商店：`,
-      store.name
-    );
-    if (!action) return;
-    if (action.trim().toUpperCase() === "DELETE") {
-      if (state.stores.length <= 1) {
-        alert("至少需保留一家商店喔！");
-        return;
-      }
-      state.stores = state.stores.filter((s) => s.id !== store.id);
-      state.currentStoreId = state.stores[0].id;
-      saveState();
-      renderApp();
-    } else if (action.trim()) {
-      store.name = action.trim();
-      saveState();
-      renderApp();
-    }
-  });
+  document
+    .getElementById("btnClearStoreInModal")
+    .addEventListener("click", clearCurrentStoreData);
+
+  document
+    .getElementById("btnDeleteStoreInModal")
+    .addEventListener("click", deleteCurrentStore);
 
   // 手動記一筆商品
   document.getElementById("btnAddManualItem").addEventListener("click", () => {
@@ -1182,24 +1448,25 @@ function bindEvents() {
     saveState();
     document.getElementById("settingsModal").classList.add("hidden");
     renderApp();
+    showToast("設定已儲存");
   });
 
   // 重新載入預設 9 張實拍
   document
     .getElementById("btnRestoreDemoPhotos")
     .addEventListener("click", () => {
-      if (
-        confirm(
-          "確定要重新載入資料夾內的 9 張日本藥妝實拍照片與預設商店資料嗎？"
-        )
-      ) {
-        const builtIn = createBuiltInStores();
-        state.stores = builtIn;
-        state.currentStoreId = builtIn[0].id;
-        saveState();
-        document.getElementById("settingsModal").classList.add("hidden");
-        renderApp();
-      }
+      showConfirmModal(
+        "確定要重新載入資料夾內的 9 張日本藥妝實拍照片與預設商店資料嗎？",
+        () => {
+          const builtIn = createBuiltInStores();
+          state.stores = builtIn;
+          state.currentStoreId = builtIn[0].id;
+          saveState();
+          document.getElementById("settingsModal").classList.add("hidden");
+          renderApp();
+          showToast("已重新載入 9 張預設實拍");
+        }
+      );
     });
 
   // 商品編輯視窗稅率與自動互算
@@ -1245,12 +1512,14 @@ function bindEvents() {
       const card = store.cards.find((c) => c.id === cardId);
       if (!card) return;
       const item = card.items.find((i) => i.id === itemId);
-      if (item && confirm(`確定要刪除「${item.name}」這個品項嗎？`)) {
+      if (!item) return;
+      showConfirmModal(`確定要刪除「${item.name}」這個品項嗎？`, () => {
         card.items = card.items.filter((i) => i.id !== itemId);
         saveState();
         document.getElementById("itemModal").classList.add("hidden");
         renderApp();
-      }
+        showToast("已刪除品項");
+      });
     });
 
   document.getElementById("btnSaveItem").addEventListener("click", () => {
@@ -1267,7 +1536,7 @@ function bindEvents() {
     );
 
     if (!name) {
-      alert("請輸入商品名稱！");
+      showToast("請輸入商品名稱！");
       return;
     }
 
@@ -1300,6 +1569,7 @@ function bindEvents() {
     saveState();
     document.getElementById("itemModal").classList.add("hidden");
     renderApp();
+    showToast("商品已儲存");
   });
 
   // 底部購物明細抽屜
@@ -1314,7 +1584,7 @@ function bindEvents() {
 
   document.getElementById("btnClearSelection").addEventListener("click", () => {
     const store = getCurrentStore();
-    if (confirm(`確定要清空「${store.name}」所有已勾選的商品嗎？`)) {
+    showConfirmModal(`確定要清空「${store.name}」所有已勾選的商品嗎？`, () => {
       store.cards.forEach((c) =>
         c.items.forEach((i) => {
           i.selected = false;
@@ -1324,7 +1594,8 @@ function bindEvents() {
       saveState();
       document.getElementById("cartDrawerModal").classList.add("hidden");
       renderApp();
-    }
+      showToast("已清空勾選狀態");
+    });
   });
 
   document.getElementById("btnCopySummary").addEventListener("click", () => {
@@ -1348,7 +1619,7 @@ function bindEvents() {
     lines.push(`含稅總額：${formatYen(totalTaxed)} (${formatTwd(totalTaxed)})`);
 
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      alert("已複製採買明細！可直接貼到 LINE 群組或備忘錄。");
+      showToast("已複製採買明細！");
     });
   });
 
@@ -1366,4 +1637,5 @@ function bindEvents() {
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   renderApp();
+  initHighCapacityStorage();
 });

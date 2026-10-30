@@ -1017,6 +1017,72 @@ body {
   cursor: pointer;
 }
 
+.danger-solid-btn {
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent-persimmon);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #a94c2b;
+}
+
+.store-sub-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sub-divider {
+  color: var(--border-warm);
+}
+
+.danger-link {
+  color: var(--accent-persimmon);
+}
+
+.store-danger-zone {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1.5px dashed var(--border-warm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.danger-zone-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.confirm-message {
+  font-size: 0.92rem;
+  color: var(--ink-main);
+  margin-bottom: 18px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.toast-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3d352e;
+  color: #fffdf9;
+  padding: 10px 18px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
 /* 購物明細列表 */
 .cart-drawer-list {
   display: flex;

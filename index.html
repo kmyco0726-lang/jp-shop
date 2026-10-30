@@ -62,7 +62,11 @@
         </div>
         <div class="tax-free-sub">
           <span>日本免稅基準：未稅滿 ¥5,000</span>
-          <button id="btnRenameStore" class="text-link-btn">改店名 / 刪除</button>
+          <div class="store-sub-actions">
+            <button type="button" id="btnClearStoreData" class="text-link-btn danger-link">清空本店資料</button>
+            <span class="sub-divider">｜</span>
+            <button type="button" id="btnRenameStore" class="text-link-btn">改店名 / 刪除</button>
+          </div>
         </div>
       </section>
 
@@ -168,6 +172,10 @@
             </label>
           </div>
           <div class="preset-restore-box">
+            <span>📦 手機本機大容量資料庫 (IndexedDB)：</span>
+            <strong id="storageStatusText" style="color: var(--accent-sage)">啟用中（可存數百～上千張照片）</strong>
+          </div>
+          <div class="preset-restore-box">
             <span>內建範例與相簿重載：</span>
             <button type="button" id="btnRestoreDemoPhotos" class="secondary-pill-btn">重新載入資料夾 9 張日本藥妝實拍</button>
           </div>
@@ -216,6 +224,54 @@
         </div>
       </div>
     </div>
+
+    <!-- 商店新增 / 改店名 / 清空 / 刪除視窗 -->
+    <div id="storeModal" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 id="storeModalTitle">🏪 商店管理</h3>
+          <button type="button" id="btnCloseStoreModal" class="close-btn">✕</button>
+        </div>
+        <div class="settings-form">
+          <input type="hidden" id="storeModalMode" value="edit" />
+          <label class="form-field">
+            <span>商店名稱</span>
+            <input type="text" id="inputStoreName" placeholder="例如：松本清 心齋橋店、唐吉訶德" />
+          </label>
+          <button type="button" id="btnSaveStoreName" class="primary-btn full-width">儲存商店名稱</button>
+
+          <div id="storeDangerZone" class="store-danger-zone">
+            <div class="danger-zone-title">本店資料清理與刪除</div>
+            <div class="modal-footer-actions">
+              <button type="button" id="btnClearStoreInModal" class="danger-outline-btn" style="flex: 1">
+                🧹 清空本店全部資料
+              </button>
+              <button type="button" id="btnDeleteStoreInModal" class="danger-solid-btn" style="flex: 1">
+                🗑️ 刪除此商店
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自訂確認視窗（避免手機/內嵌瀏覽器封鎖原生 confirm） -->
+    <div id="confirmModal" class="modal-backdrop hidden" style="z-index: 80">
+      <div class="modal-sheet confirm-sheet">
+        <div class="modal-header">
+          <h3 id="confirmModalTitle">請確認操作</h3>
+          <button type="button" id="btnCloseConfirmModal" class="close-btn">✕</button>
+        </div>
+        <p id="confirmModalMessage" class="confirm-message"></p>
+        <div class="modal-footer-actions">
+          <button type="button" id="btnCancelConfirm" class="secondary-pill-btn">取消</button>
+          <button type="button" id="btnAcceptConfirm" class="danger-solid-btn" style="flex: 1">確定執行</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 輕量提示 Toast -->
+    <div id="toastBanner" class="toast-banner hidden"></div>
 
     <!-- 放大檢視原圖 Lightbox -->
     <div id="lightboxModal" class="modal-backdrop hidden">
