@@ -1296,6 +1296,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
   addCandidate("gemini-2.0-flash-lite");
 
   let lastErrorMsg = "";
+  const errorLog = [];
 
   for (let i = 0; i < candidateModels.length; i++) {
     const modelName = candidateModels[i];
@@ -1333,6 +1334,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
 
       const errText = await response.text();
       lastErrorMsg = `HTTP ${response.status}: ${errText.slice(0, 140)}`;
+      errorLog.push(`${modelName}=${response.status}`);
 
       if (errText.includes("API_KEY_INVALID")) {
         throw new Error("API Key 無效，請至右上角「⚙️ 設定」檢查金鑰是否複製完整");
@@ -1379,7 +1381,10 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     }
   }
 
-  throw new Error(lastErrorMsg || "未能成功辨識商品資料，可點「✨ AI 重新辨識」或手動新增");
+  throw new Error(
+    `[v10] 已試 ${errorLog.join("、") || "無"}；最後錯誤：` +
+      (lastErrorMsg || "未能成功辨識商品資料")
+  );
 }
 
 // 剪裁狀態管理
