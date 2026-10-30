@@ -1036,7 +1036,7 @@ let isUserExplicitCancel = false;
 let currentAiAbortController = null;
 
 // 帶超時與手動取消支援的 fetch（清楚區分「使用者主動略過」與「網路逾時」）
-async function fetchWithTimeout(url, options = {}, timeoutMs = 22000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 28000) {
   const controller = new AbortController();
   currentAiAbortController = controller;
   let isTimeout = false;
@@ -1276,16 +1276,17 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     },
   });
 
-  // 超速直連候選：首選 gemini-2.0-flash，備選 gemini-2.5-flash、gemini-1.5-flash、gemini-flash-latest
+  // 超速抗塞車候選：包含高可用度輕量版 gemini-2.0-flash-lite / gemini-1.5-flash-8b
   const candidateModels = [];
   if (state.settings.preferredModel) {
     candidateModels.push(state.settings.preferredModel);
   }
   for (const m of [
+    "gemini-2.0-flash-lite",
     "gemini-2.0-flash",
-    "gemini-2.5-flash",
     "gemini-1.5-flash",
-    "gemini-flash-latest",
+    "gemini-1.5-flash-8b",
+    "gemini-2.5-flash",
   ]) {
     if (!candidateModels.includes(m)) candidateModels.push(m);
   }
@@ -1303,7 +1304,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     )}`;
 
     try {
-      // 單次連線上限 15 秒，塞車或超時自動切換備用模型
+      // 給予模型充足推論時間（25秒），逾時才切換備用模型
       const response = await fetchWithTimeout(
         endpoint,
         {
@@ -1311,7 +1312,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
           headers: { "Content-Type": "application/json" },
           body: requestBody,
         },
-        15000
+        25000
       );
 
       if (response.ok) {
@@ -1333,9 +1334,10 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
         throw new Error("API Key 無效，請至右上角「⚙️ 設定」檢查金鑰是否複製完整");
       }
 
-      // 503 伺服器尖峰塞車 (high demand) 或 500 暫時錯誤：立即無縫切換下一個模型！
+      // 503 伺服器尖峰塞車 (high demand) 或 500 暫時錯誤：微等待 800ms 並無縫切換下一個模型！
       if (response.status === 503 || response.status === 500) {
-        lastErrorMsg = `模型 ${modelName} 伺服器塞車 (503)，切換備用模型...`;
+        lastErrorMsg = `模型 ${modelName} 伺服器暫時塞車 (503)，已自動嘗試其他模型`;
+        await new Promise((r) => setTimeout(r, 800));
         continue;
       }
 
