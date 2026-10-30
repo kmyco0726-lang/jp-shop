@@ -946,36 +946,63 @@ function renderSummaryDock() {
 }
 
 // 影像壓縮與 Base64 轉換（以最快速度輸出 800px 輕量圖，縮短傳輸至 1~2 秒並確保標籤清晰）
-function compressImageFile(file, maxDim = 800, quality = 0.72) {
+function compressImageFile(file, maxDim = 800, quality = 0.65) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+    // 支援 createImageBitmap（現代手機瀏覽器硬體加速解碼）
+    if (window.createImageBitmap) {
+      createImageBitmap(file)
+        .then((bitmap) => {
+          let { width, height } = bitmap;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", quality);
-        resolve(dataUrl);
-      };
-      img.onerror = reject;
-      img.src = ev.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        })
+        .catch(() => fallbackCompress(file, maxDim, quality, resolve, reject));
+    } else {
+      fallbackCompress(file, maxDim, quality, resolve, reject);
+    }
   });
+}
+
+function fallbackCompress(file, maxDim, quality, resolve, reject) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = ev.target.result;
+  };
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
 }
 
 // 將網址或本地圖片轉為 Base64 供 AI 重新辨識使用
@@ -985,7 +1012,7 @@ async function imageUrlToBase64(url) {
   }
   const resp = await fetch(url);
   const blob = await resp.blob();
-  const dataUrl = await compressImageFile(blob, 800, 0.72);
+  const dataUrl = await compressImageFile(blob, 800, 0.65);
   return dataUrl.split(",")[1];
 }
 
@@ -993,7 +1020,7 @@ let isUserExplicitCancel = false;
 let currentAiAbortController = null;
 
 // 帶超時與手動取消支援的 fetch（清楚區分「使用者主動略過」與「網路逾時」）
-async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 22000) {
   const controller = new AbortController();
   currentAiAbortController = controller;
   let isTimeout = false;
@@ -1259,7 +1286,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
     )}`;
 
     try {
-      // 單次連線上限 12 秒，超時立刻換下一個模型，絕不多等
+      // 單次連線上限 20 秒，超時切換備用模型
       const response = await fetchWithTimeout(
         endpoint,
         {
@@ -1267,7 +1294,7 @@ async function analyzeShelfImageWithGemini(base64Data, onStatusUpdate) {
           headers: { "Content-Type": "application/json" },
           body: requestBody,
         },
-        12000
+        20000
       );
 
       if (response.ok) {
