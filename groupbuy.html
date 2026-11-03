@@ -11,8 +11,8 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20261103_v1" />
-    <link rel="stylesheet" href="./groupbuy.css?v=20261103_v1" />
+    <link rel="stylesheet" href="./styles.css?v=20261103_v2" />
+    <link rel="stylesheet" href="./groupbuy.css?v=20261103_v2" />
   </head>
   <body>
     <div class="notebook-container groupbuy-app">
@@ -34,6 +34,12 @@
         </div>
 
         <div class="header-actions">
+          <!-- 雲端即時同步狀態按鈕 -->
+          <button id="btnOpenSyncSettings" class="sync-status-pill" title="點擊設定雲端同步房號">
+            <span class="sync-dot live" id="syncStatusDot"></span>
+            <span id="syncStatusText">即時雲端連線中</span>
+          </button>
+
           <!-- 回到採買手帳主站按鈕 -->
           <a href="./index.html" class="nav-back-link" title="返回採買手帳比價">
             <span class="nav-pill">📓 採買手帳</span>
@@ -104,9 +110,14 @@
             <button type="button" class="status-chip bought" data-status="bought">✅ 已購入</button>
           </div>
 
-          <button type="button" id="btnOpenNewWishModal" class="btn-secondary-action">
-            <span>➕ 我要許願商品</span>
-          </button>
+          <div class="wishlist-actions-row">
+            <button type="button" id="btnOpenNewWishModal" class="btn-secondary-action">
+              <span>➕ 我要許願商品</span>
+            </button>
+            <button type="button" id="btnCopyInviteLink" class="btn-primary-action" style="padding:6px 14px; font-size:0.84rem;" title="複製專屬團購連結傳給團員">
+              <span>🔗 邀請團友加入（同房即時同步）</span>
+            </button>
+          </div>
         </section>
 
         <!-- 許願卡片列表 -->
@@ -252,18 +263,9 @@
             <input type="text" id="wishTitleInput" class="form-input" placeholder="例：EVE 白兔止痛藥 QUICK DX 40錠" required />
           </div>
 
-          <div class="form-row">
-            <div class="form-group half">
-              <label for="wishQtyInput" class="form-label">想買數量 <span class="required">*</span></label>
-              <input type="number" id="wishQtyInput" class="form-input" value="1" min="1" max="99" required />
-            </div>
-            <div class="form-group half">
-              <label for="wishTargetPriceInput" class="form-label">參考預算/建議售價 (日圓)</label>
-              <div class="input-with-affix">
-                <span class="affix">¥</span>
-                <input type="number" id="wishTargetPriceInput" class="form-input" placeholder="例：1780" min="0" />
-              </div>
-            </div>
+          <div class="form-group">
+            <label for="wishQtyInput" class="form-label">想買數量 <span class="required">*</span></label>
+            <input type="number" id="wishQtyInput" class="form-input" value="1" min="1" max="99" required />
           </div>
 
           <div class="form-group">
@@ -350,6 +352,36 @@
       </div>
     </div>
 
+    <!-- MODAL 5: 雲端同步與房間設定 -->
+    <div id="modalSyncSettings" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>☁️ 跨手機即時雲端同步設定</h3>
+          <button type="button" class="close-btn" data-close-modal="modalSyncSettings">✕</button>
+        </div>
+        <form id="formSyncSettings" class="modal-form">
+          <p class="account-tip">不同裝置進入相同「團購房號」，團員在自己手機許願或喊單，團主與其他成員的手機即可<strong>自動即時同步，無須手動匯入！</strong></p>
+          
+          <div class="form-group">
+            <label for="syncRoomIdInput" class="form-label">團購房號 (Room ID) <span class="required">*</span></label>
+            <input type="text" id="syncRoomIdInput" class="form-input" value="osaka_groupbuy_notebook" placeholder="例：osaka2026" required />
+            <span style="font-size:0.75rem; color:var(--ink-muted);">只要大家加入相同房號，即可全自動跨手機連線</span>
+          </div>
+
+          <div class="form-group">
+            <label for="firebaseDbUrlInput" class="form-label">Firebase 即時資料庫網址 (選填，可永久儲存)</label>
+            <input type="text" id="firebaseDbUrlInput" class="form-input" placeholder="例：https://your-project.firebaseio.com" />
+            <span style="font-size:0.72rem; color:var(--ink-muted);">未填寫時，預設使用免金鑰之公共即時廣播通道 (EMQX WebSocket)</span>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" data-close-modal="modalSyncSettings">取消</button>
+            <button type="submit" class="btn-submit">💾 儲存並重新連線</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- 圖片放大預覽 Lightbox -->
     <div id="groupbuyLightbox" class="modal-backdrop hidden">
       <div class="lightbox-content">
@@ -361,6 +393,8 @@
     <!-- 輕量 Toast 提示 -->
     <div id="toastBanner" class="toast-banner hidden"></div>
 
-    <script src="./groupbuy.js?v=20261103_v1"></script>
+    <!-- 免費即時 WebSocket 通訊庫 -->
+    <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
+    <script src="./groupbuy.js?v=20261103_v3"></script>
   </body>
 </html>

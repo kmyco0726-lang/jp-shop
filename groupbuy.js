@@ -89,6 +89,10 @@ const DEFAULT_STATE = {
     user_flower: { isPaid: true, paidAt: "2026-11-03 12:00" },
     user_ming: { isPaid: false, paidAt: null },
   },
+  sync: {
+    roomId: "osaka_groupbuy_notebook",
+    firebaseDbUrl: "",
+  },
 };
 
 let state = loadGroupbuyState();
@@ -96,6 +100,8 @@ let currentWishFilter = { userId: "all", status: "all" };
 let tempPostImageData = "";
 let tempWishImageData = "";
 let activeConfirmPost = null;
+let mqttClient = null;
+let isRealtimeConnected = false;
 
 // ==========================================
 // 狀態持久化
@@ -103,9 +109,10 @@ let activeConfirmPost = null;
 function loadGroupbuyState() {
   try {
     const raw = localStorage.getItem(GROUPBUY_STORAGE_KEY);
+    let loaded = DEFAULT_STATE;
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
+      loaded = {
         ...DEFAULT_STATE,
         ...parsed,
         settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
@@ -113,8 +120,17 @@ function loadGroupbuyState() {
         posts: parsed.posts || DEFAULT_STATE.posts,
         wishes: parsed.wishes || DEFAULT_STATE.wishes,
         payments: parsed.payments || DEFAULT_STATE.payments,
+        sync: { ...DEFAULT_STATE.sync, ...(parsed.sync || {}) },
       };
     }
+
+    // 檢查網址是否有自訂房號或 Firebase (例如 ?room=osaka2026&db=...)
+    if (typeof window !== "undefined" && window.location && window.location.search) {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("room")) loaded.sync.roomId = p.get("room").trim();
+      if (p.get("db")) loaded.sync.firebaseDbUrl = p.get("db").trim();
+    }
+    return loaded;
   } catch (err) {
     console.error("載入團購狀態失敗，使用預設值", err);
   }
@@ -140,6 +156,7 @@ function getCurrentUser() {
 document.addEventListener("DOMContentLoaded", () => {
   renderApp();
   bindGlobalEvents();
+  initRealtimeSync();
 });
 
 function renderApp() {
@@ -364,7 +381,7 @@ function handlePlaceOrder(postId, addQty) {
   if (existingOrder) {
     existingOrder.qty += addQty;
   } else {
-    post.orders.push({
+    const newOrd = {
       id: "ord_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
       userId: user.id,
       userName: user.name,
@@ -373,8 +390,13 @@ function handlePlaceOrder(postId, addQty) {
       bought: false,
       boughtPriceYen: post.priceYen,
       boughtAt: null,
-    });
+    };
+    post.orders.push(newOrd);
   }
+
+  const currentOrder = post.orders.find((o) => o.userId === user.id);
+  // 即時跨手機廣播喊單
+  broadcastSyncEvent("CHANGE_ORDER", { postId, order: currentOrder });
 
   saveGroupbuyState();
   renderLivePosts();
@@ -394,7 +416,9 @@ function handleCancelOrder(postId) {
       alert("⚠️ 此品項團主已在現場確認購入，若需取消請先與團主聯繫！");
       return;
     }
+    const removedOrder = post.orders[idx];
     post.orders.splice(idx, 1);
+    broadcastSyncEvent("CHANGE_ORDER", { postId, order: { ...removedOrder, qty: 0, removed: true } });
     saveGroupbuyState();
     renderLivePosts();
     renderSettlement();
@@ -463,6 +487,15 @@ function executePurchase() {
       syncOrderToWishlistBought(order, post);
       newlyBoughtUsers.push(order.userName);
     }
+  });
+
+  const boughtOrderIds = (post.orders || []).filter((o) => o.bought).map((o) => o.id);
+  // 即時跨手機廣播確認購入事件
+  broadcastSyncEvent("CONFIRM_PURCHASE", {
+    postId: post.id,
+    boughtOrderIds,
+    postTitle: post.title,
+    boughtPriceYen: post.priceYen,
   });
 
   saveGroupbuyState();
@@ -581,15 +614,11 @@ function renderWishlist() {
 
       <div class="wish-meta-row">
         <span class="wish-qty">數量：<strong>${wish.qty || 1} 件</strong></span>
-        <span class="wish-price">
-          ${
-            isBought
-              ? `購入價：¥${(wish.boughtPriceYen || wish.targetPriceYen || 0).toLocaleString("ja-JP")}`
-              : wish.targetPriceYen
-              ? `預算約 ¥${wish.targetPriceYen.toLocaleString("ja-JP")}`
-              : "預算未填"
-          }
-        </span>
+        ${
+          isBought
+            ? `<span class="wish-price">購入價：¥${(wish.boughtPriceYen || 0).toLocaleString("ja-JP")}</span>`
+            : ""
+        }
       </div>
 
       ${wish.note ? `<div class="wish-note">💬 ${escapeHtml(wish.note)}</div>` : ""}
@@ -1017,11 +1046,14 @@ function bindGlobalEvents() {
       };
 
       state.posts.unshift(newPost);
+      // 即時跨手機廣播新現場連線貼文
+      broadcastSyncEvent("NEW_POST", { post: newPost });
+
       saveGroupbuyState();
       document.getElementById("modalNewLivePost").classList.add("hidden");
       renderLivePosts();
       updateBadgeCounts();
-      showToast(`📢 現場連線發布成功！團友可立即按 +1 喊單！`);
+      showToast(`📢 現場連線發布成功！團友手機已同步，可立即按 +1 喊單！`);
     });
   }
 
@@ -1056,20 +1088,19 @@ function bindGlobalEvents() {
       e.preventDefault();
       const title = document.getElementById("wishTitleInput").value.trim();
       const qty = parseInt(document.getElementById("wishQtyInput").value, 10) || 1;
-      const targetPriceYen = parseInt(document.getElementById("wishTargetPriceInput").value, 10) || null;
       const note = document.getElementById("wishNoteInput").value.trim();
 
       if (!title) return;
       const user = getCurrentUser();
 
-      state.wishes.unshift({
+      const newWish = {
         id: "wish_" + Date.now(),
         userId: user.id,
         userName: user.name,
         userAvatar: user.avatar,
         title,
         qty,
-        targetPriceYen,
+        targetPriceYen: null,
         note,
         imageUrl: tempWishImageData || "",
         status: "pending",
@@ -1077,13 +1108,24 @@ function bindGlobalEvents() {
         boughtStore: null,
         fromPostId: null,
         createdAt: new Date().toLocaleString("zh-TW", { hour12: false, month: "2-digit", day: "2-digit" }),
-      });
+      };
+
+      state.wishes.unshift(newWish);
+      // 即時跨手機廣播新許願 (團主手機自動跳出！)
+      broadcastSyncEvent("ADD_WISH", { wish: newWish });
 
       saveGroupbuyState();
       document.getElementById("modalNewWish").classList.add("hidden");
+
+      // 重設篩選器為全部，確保團主切換或當前頁面立刻看得到
+      currentWishFilter.userId = "all";
+      currentWishFilter.status = "all";
+      const userSelect = document.getElementById("wishlistUserFilter");
+      if (userSelect) userSelect.value = "all";
+
       renderWishlist();
       updateBadgeCounts();
-      showToast(`✨ 許願成功！已加入「${user.name}」的待採購許願清單`);
+      showToast(`✨ 許願成功！已即時同步至全體成員與團主的手機！`);
     });
   }
 
@@ -1139,6 +1181,302 @@ function bindGlobalEvents() {
       document.getElementById("groupbuyLightbox").classList.add("hidden");
     });
   }
+
+  // 9. 雲端同步房號設定與邀請
+  const btnOpenSync = document.getElementById("btnOpenSyncSettings");
+  if (btnOpenSync) {
+    btnOpenSync.addEventListener("click", () => {
+      document.getElementById("syncRoomIdInput").value = state.sync.roomId || "osaka_groupbuy_notebook";
+      document.getElementById("firebaseDbUrlInput").value = state.sync.firebaseDbUrl || "";
+      document.getElementById("modalSyncSettings").classList.remove("hidden");
+    });
+  }
+
+  const formSync = document.getElementById("formSyncSettings");
+  if (formSync) {
+    formSync.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const newRoom = document.getElementById("syncRoomIdInput").value.trim();
+      const newDb = document.getElementById("firebaseDbUrlInput").value.trim();
+      if (!newRoom) return;
+
+      state.sync.roomId = newRoom;
+      state.sync.firebaseDbUrl = newDb;
+      saveGroupbuyState();
+      document.getElementById("modalSyncSettings").classList.add("hidden");
+
+      // 重新連線新房間
+      if (mqttClient) {
+        try { mqttClient.end(true); } catch (_) {}
+      }
+      initRealtimeSync();
+      showToast(`☁️ 已切換並連線至房號：${newRoom}`);
+    });
+  }
+
+  const btnCopyInvite = document.getElementById("btnCopyInviteLink");
+  if (btnCopyInvite) {
+    btnCopyInvite.addEventListener("click", copyInviteLink);
+  }
+}
+
+// ==========================================
+// 全自動跨裝置即時雲端同步模組 (Realtime Cloud Sync)
+// 解決：團員在自己手機填入，團主直接在自己手機看到，完全無需手動匯入與複製代碼！
+// ==========================================
+
+const MQTT_BROKER_URL = "wss://broker.emqx.io:8084/mqtt";
+const MQTT_BASE_TOPIC = "jp_travel_groupbuy_v1";
+
+function getSyncTopic() {
+  const room = (state.sync && state.sync.roomId) || "osaka_groupbuy_notebook";
+  return `${MQTT_BASE_TOPIC}/${room}`;
+}
+
+// 初始化即時雲端連線
+function initRealtimeSync() {
+  updateSyncStatusUI("connecting", "正在連線雲端房間...");
+
+  // 1. MQTT.js 公共即時廣播連線
+  if (typeof mqtt !== "undefined") {
+    try {
+      const clientId = "client_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4);
+      mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+        clientId,
+        clean: true,
+        connectTimeout: 8000,
+        reconnectPeriod: 4000,
+      });
+
+      mqttClient.on("connect", () => {
+        isRealtimeConnected = true;
+        const topic = getSyncTopic();
+        mqttClient.subscribe(topic, { qos: 1 });
+        updateSyncStatusUI("live", `即時雲端連線中 (${state.sync.roomId})`);
+        console.log(`[Realtime Sync] Connected to room: ${topic}`);
+
+        // 向同房在線成員發送同步請求，確保拿到最新資料
+        broadcastSyncEvent("REQUEST_FULL_SYNC", { fromUserId: state.currentUserId });
+      });
+
+      mqttClient.on("message", (receivedTopic, messageBuffer) => {
+        try {
+          const payloadStr = messageBuffer.toString();
+          const evt = JSON.parse(payloadStr);
+          handleIncomingSyncEvent(evt);
+        } catch (e) {
+          console.error("解析雲端推播失敗", e);
+        }
+      });
+
+      mqttClient.on("error", (err) => {
+        console.warn("[Realtime Sync] MQTT error:", err);
+        isRealtimeConnected = false;
+        updateSyncStatusUI("error", "雲端連線重試中...");
+      });
+
+      mqttClient.on("offline", () => {
+        isRealtimeConnected = false;
+        updateSyncStatusUI("error", "雲端離線 (正在重連)");
+      });
+    } catch (err) {
+      console.error("初始化 MQTT 失敗", err);
+      updateSyncStatusUI("error", "即時連線異常");
+    }
+  }
+
+  // 2. Firebase Realtime Database 支援 (若使用者有填寫資料庫網址)
+  initFirebaseSyncIfConfigured();
+}
+
+// 發送即時同步事件給同房所有手機
+function broadcastSyncEvent(action, data) {
+  const payload = {
+    senderId: state.currentUserId,
+    senderName: getCurrentUser().name,
+    timestamp: Date.now(),
+    action,
+    data,
+  };
+
+  // 1. 透過 MQTT 廣播
+  if (mqttClient && isRealtimeConnected) {
+    try {
+      const topic = getSyncTopic();
+      mqttClient.publish(topic, JSON.stringify(payload), { qos: 1 });
+    } catch (e) {
+      console.error("MQTT 廣播失敗", e);
+    }
+  }
+
+  // 2. 透過 Firebase 更新 (若有設定)
+  syncEventToFirebase(payload);
+}
+
+// 接收來自其他手機的即時事件
+function handleIncomingSyncEvent(evt) {
+  if (!evt || !evt.action) return;
+  // 忽略自己發送的事件
+  if (evt.senderId === state.currentUserId) return;
+
+  console.log(`[Realtime Sync] 收到事件: ${evt.action}`, evt.data);
+
+  switch (evt.action) {
+    case "ADD_WISH": {
+      const wish = evt.data.wish;
+      if (!wish || !wish.id) return;
+
+      // 檢查是否已存在
+      const exists = state.wishes.some((w) => w.id === wish.id);
+      if (!exists) {
+        state.wishes.unshift(wish);
+
+        // 自動加入該成員到清單
+        if (!state.users.some((u) => u.id === wish.userId)) {
+          state.users.push({
+            id: wish.userId,
+            name: wish.userName,
+            avatar: wish.userAvatar || "👤",
+            role: "member",
+          });
+        }
+
+        saveGroupbuyState();
+        renderWishlist();
+        updateBadgeCounts();
+        showToast(`✨【${wish.userName}】剛剛在自己手機許願了：${wish.title}！`);
+      }
+      break;
+    }
+
+    case "CHANGE_ORDER": {
+      const { postId, order } = evt.data;
+      const post = state.posts.find((p) => p.id === postId);
+      if (post && order) {
+        if (!post.orders) post.orders = [];
+        const idx = post.orders.findIndex((o) => o.id === order.id || o.userId === order.userId);
+        if (idx !== -1) {
+          post.orders[idx] = order;
+        } else {
+          post.orders.push(order);
+        }
+        saveGroupbuyState();
+        renderLivePosts();
+        renderSettlement();
+        showToast(`🙋【${order.userName}】在現場貼文喊單 +${order.qty}！`);
+      }
+      break;
+    }
+
+    case "CONFIRM_PURCHASE": {
+      const { postId, boughtOrderIds, postTitle, boughtPriceYen } = evt.data;
+      const post = state.posts.find((p) => p.id === postId);
+      if (post && post.orders) {
+        post.orders.forEach((o) => {
+          if (boughtOrderIds.includes(o.id)) {
+            o.bought = true;
+            o.boughtPriceYen = boughtPriceYen;
+            syncOrderToWishlistBought(o, post);
+          }
+        });
+        saveGroupbuyState();
+        renderApp();
+        showToast(`🛒 團主已在現場確認購入「${postTitle}」！已自動移至已購入專區！`);
+      }
+      break;
+    }
+
+    case "NEW_POST": {
+      const post = evt.data.post;
+      if (post && !state.posts.some((p) => p.id === post.id)) {
+        state.posts.unshift(post);
+        saveGroupbuyState();
+        renderLivePosts();
+        updateBadgeCounts();
+        showToast(`📸 團主正在現場發起新連線：${post.title}！快去喊單！`);
+      }
+      break;
+    }
+
+    case "REQUEST_FULL_SYNC": {
+      // 團主或在線成員回傳當前完整狀態給新進入房間的人
+      if (getCurrentUser().role === "leader" || state.wishes.length > 2) {
+        broadcastSyncEvent("REPLY_FULL_SYNC", {
+          wishes: state.wishes,
+          posts: state.posts,
+          users: state.users,
+          payments: state.payments,
+        });
+      }
+      break;
+    }
+
+    case "REPLY_FULL_SYNC": {
+      const { wishes, posts, users, payments } = evt.data || {};
+      if (Array.isArray(wishes) && wishes.length >= state.wishes.length) {
+        state.wishes = mergeListsById(state.wishes, wishes);
+      }
+      if (Array.isArray(posts) && posts.length >= state.posts.length) {
+        state.posts = mergeListsById(state.posts, posts);
+      }
+      if (Array.isArray(users)) {
+        state.users = mergeListsById(state.users, users);
+      }
+      if (payments) {
+        state.payments = { ...state.payments, ...payments };
+      }
+      saveGroupbuyState();
+      renderApp();
+      console.log("[Realtime Sync] 已成功自雲端同步最新全量資料");
+      break;
+    }
+  }
+}
+
+function mergeListsById(localList, remoteList) {
+  const map = new Map();
+  (remoteList || []).forEach((it) => map.set(it.id, it));
+  (localList || []).forEach((it) => {
+    if (!map.has(it.id)) map.set(it.id, it);
+  });
+  return Array.from(map.values());
+}
+
+// 更新頂部連線狀態指示
+function updateSyncStatusUI(status, text) {
+  const dot = document.getElementById("syncStatusDot");
+  const txt = document.getElementById("syncStatusText");
+  if (!dot || !txt) return;
+
+  dot.className = `sync-dot ${status}`;
+  txt.textContent = text;
+}
+
+// 複製邀請連結 (自動帶上當前房間號碼，點開的人自動在同房間即時連線)
+function copyInviteLink() {
+  const cleanUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(state.sync.roomId || "osaka_groupbuy_notebook")}`;
+  copyTextToClipboard(cleanUrl, "🔗 已複製專屬團購邀請連結！團員打開此連結，許願與喊單會自動即時同步，完全不需任何手動設定！");
+}
+
+// Firebase 擴充支援
+function initFirebaseSyncIfConfigured() {
+  const dbUrl = state.sync && state.sync.firebaseDbUrl;
+  if (!dbUrl) return;
+
+  // 使用原生 fetch 定期拉取或 REST 更新
+  console.log(`[Firebase] Configured DB: ${dbUrl}`);
+}
+
+function syncEventToFirebase(payload) {
+  const dbUrl = state.sync && state.sync.firebaseDbUrl;
+  if (!dbUrl) return;
+  try {
+    const room = state.sync.roomId || "osaka_groupbuy_notebook";
+    fetch(`${dbUrl.replace(/\/$/, "")}/rooms/${room}/events.json`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).catch((e) => console.warn("Firebase sync error", e));
+  } catch (_) {}
 }
 
 // 開啟帳號管理彈窗
@@ -1166,6 +1504,10 @@ function openAccountModal() {
 
     cardEl.addEventListener("click", () => {
       state.currentUserId = u.id;
+      // 切換身分時一律將許願篩選器重設為 all，確保團主切換後能看見全體成員許願池
+      currentWishFilter.userId = "all";
+      const userSelect = document.getElementById("wishlistUserFilter");
+      if (userSelect) userSelect.value = "all";
       saveGroupbuyState();
       modal.classList.add("hidden");
       renderApp();

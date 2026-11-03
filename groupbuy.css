@@ -11,6 +11,56 @@
   border-bottom: 2px dashed #e2d7c5;
 }
 
+/* 雲端即時連線指示膠囊 */
+.sync-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fdfaf3;
+  border: 1px solid #dcd4c6;
+  border-radius: 99px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-main);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.sync-status-pill:hover {
+  background: #fff;
+  border-color: var(--accent-sage);
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #bbb;
+}
+
+.sync-dot.live {
+  background: #27ae60;
+  box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.25);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+.sync-dot.syncing {
+  background: #f39c12;
+  box-shadow: 0 0 0 2px rgba(243, 156, 18, 0.25);
+}
+
+.sync-dot.error {
+  background: #e74c3c;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
 .nav-back-link {
   text-decoration: none;
 }
@@ -552,6 +602,13 @@
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin-bottom: 16px;
+}
+
+.wishlist-actions-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .wishlist-filter-group {
