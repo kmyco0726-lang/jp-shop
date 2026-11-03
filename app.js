@@ -11,205 +11,21 @@ const DEFAULT_SETTINGS = {
 };
 
 // 預設載入資料夾內 9 張日本藥妝實拍照片與精準商品標價（依照片中實際價牌店名分類）
+// 預設大阪心齋橋筋與道頓堀交會處座標 (34.6687, 135.5012) 與周邊 3 家實體藥妝店
+const OSAKA_PRESET_LOCATION = {
+  lat: 34.6687,
+  lon: 135.5012,
+  address: "大阪心齋橋筋與道頓堀交會處附近",
+};
+
 function createBuiltInStores() {
   return [
     {
-      id: "store_satudora",
-      name: "サツドラ (札幌藥妝)",
-      cards: [
-        {
-          id: "card_8498",
-          title: "DHC 護唇膏貨架 (IMG_8498)",
-          imageUrl: "./IMG_8498.JPG",
-          items: [
-            {
-              id: "item_8498_1",
-              name: "DHC 藥用護唇膏 安妮亞限定款 (アーニャ各種)",
-              note: "SPY×FAMILY 聯名款・稅率 10%",
-              untaxedPrice: 698,
-              taxedPrice: 767,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8498_2",
-              name: "DHC 純欖護唇膏 (薬用リップクリーム)",
-              note: "1.5g 經典款・お買いヤスイ特價",
-              untaxedPrice: 599,
-              taxedPrice: 658,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-          ],
-        },
-        {
-          id: "card_8500",
-          title: "Melano CC 酵素洗顏/精華專區 (IMG_8500)",
-          imageUrl: "./IMG_8500.JPG",
-          items: [
-            {
-              id: "item_8500_1",
-              name: "Melano CC 藥用黑斑集中保養美容液",
-              note: "メラノCC 薬用しみ集中対策美容液 20ml",
-              untaxedPrice: 1080,
-              taxedPrice: 1188,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8500_2",
-              name: "Melano CC 藥用黑斑集中保濕乳霜 (クリーム)",
-              note: "手中拿取商品・W維他命滲透 23g",
-              untaxedPrice: 1080,
-              taxedPrice: 1188,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-          ],
-        },
-        {
-          id: "card_8501",
-          title: "Capsule Serum 生美容液專區 (IMG_8501)",
-          imageUrl: "./IMG_8501.JPG",
-          items: [
-            {
-              id: "item_8501_1",
-              name: "CPセラム G 美容液 (穀胱甘肽白玉生美容液)",
-              note: "30ml 白色包裝・グルタチオン配合",
-              untaxedPrice: 2255,
-              taxedPrice: 2480,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8501_2",
-              name: "CPセラム V 美容液 (生維他命C美容液)",
-              note: "30ml 黃色包裝・ビタミンC誘導体",
-              untaxedPrice: 2255,
-              taxedPrice: 2480,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8501_3",
-              name: "CPセラム A 美容液 (蝦紅素抗老生美容液)",
-              note: "30ml 橘色包裝・アスタキサンチン配合",
-              untaxedPrice: 2710,
-              taxedPrice: 2981,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-          ],
-        },
-        {
-          id: "card_8502",
-          title: "Melano CC 全系列與豆乳美肌貨架 (IMG_8502)",
-          imageUrl: "./IMG_8502.JPG",
-          items: [
-            {
-              id: "item_8502_1",
-              name: "LIFTER セルフェステ化粧水 (2+1組)",
-              note: "リフターモイストアップローション 2+1セット",
-              untaxedPrice: 1597,
-              taxedPrice: 1756,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8502_2",
-              name: "Melano CC 藥用黑斑集中保養美容液 (一般版)",
-              note: "20ml 經典款",
-              untaxedPrice: 1080,
-              taxedPrice: 1188,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8502_3",
-              name: "Melano CC プレミアム美容液 (Premium 特濃版)",
-              note: "20ml 進階浸透版",
-              untaxedPrice: 1480,
-              taxedPrice: 1628,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8502_4",
-              name: "Yunth 生VC美白美容液",
-              note: "需拿空卡至櫃檯結帳・28包入",
-              untaxedPrice: 3600,
-              taxedPrice: 3960,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8502_5",
-              name: "Melano CC 美白化妝水 / 補充包",
-              note: "下排化妝水系列",
-              untaxedPrice: 900,
-              taxedPrice: 990,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8502_6",
-              name: "Melano CC 藥用保濕凝露 (ジェル)",
-              note: "右下角圓罐裝",
-              untaxedPrice: 1100,
-              taxedPrice: 1210,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-          ],
-        },
-        {
-          id: "card_8503",
-          title: "AG 過敏點鼻藥專區 (IMG_8503)",
-          imageUrl: "./IMG_8503.JPG",
-          compareKey: "ag_c_30ml",
-          items: [
-            {
-              id: "item_8503_1",
-              name: "AG エージーアレルカットC 15ml (清涼型點鼻藥)",
-              note: "第2類医薬品・15ml 小瓶",
-              compareKey: "ag_allercut_c_15",
-              untaxedPrice: 1480,
-              taxedPrice: 1628,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-            {
-              id: "item_8503_2",
-              name: "AG エージーアレルカットC 30ml (清涼型點鼻藥)",
-              note: "第2類医薬品・30ml 大瓶",
-              compareKey: "ag_allercut_c_30",
-              untaxedPrice: 2180,
-              taxedPrice: 2398,
-              taxRate: 10,
-              selected: false,
-              qty: 1,
-            },
-          ],
-        },
-      ],
-    },
-    {
       id: "store_daikoku",
-      name: "ダイコクドラッグ (大國藥妝)",
+      name: "ダイコクドラッグ 道頓堀店 (大國藥妝)",
+      lat: 34.6688,
+      lon: 135.5015,
+      address: "大阪府大阪市中央区道頓堀1丁目 (距離約 30m)",
       cards: [
         {
           id: "card_8504",
@@ -342,6 +158,273 @@ function createBuiltInStores() {
         },
       ],
     },
+    {
+      id: "store_matsukiyo",
+      name: "マツモトキヨシ 心斎橋南店 (松本清)",
+      lat: 34.6686,
+      lon: 135.5018,
+      address: "大阪府大阪市中央区心斎橋筋2丁目 (距離約 55m)",
+      cards: [
+        {
+          id: "card_8498",
+          title: "DHC 護唇膏貨架 (IMG_8498)",
+          imageUrl: "./IMG_8498.JPG",
+          items: [
+            {
+              id: "item_8498_1",
+              name: "DHC 藥用護唇膏 安妮亞限定款 (アーニャ各種)",
+              note: "SPY×FAMILY 聯名款・松本清特惠",
+              untaxedPrice: 680,
+              taxedPrice: 748,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8498_2",
+              name: "DHC 純欖護唇膏 (薬用リップクリーム)",
+              note: "1.5g 經典款・限定特價",
+              untaxedPrice: 580,
+              taxedPrice: 638,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_8500",
+          title: "Melano CC 酵素洗顏/精華專區 (IMG_8500)",
+          imageUrl: "./IMG_8500.JPG",
+          items: [
+            {
+              id: "item_8500_1",
+              name: "Melano CC 藥用黑斑集中保養美容液",
+              note: "メラノCC 薬用しみ集中対策美容液 20ml",
+              untaxedPrice: 980,
+              taxedPrice: 1078,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8500_2",
+              name: "Melano CC 藥用黑斑集中保濕乳霜 (クリーム)",
+              note: "手中拿取商品・W維他命滲透 23g",
+              untaxedPrice: 1050,
+              taxedPrice: 1155,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_8502",
+          title: "Melano CC 全系列與豆乳美肌貨架 (IMG_8502)",
+          imageUrl: "./IMG_8502.JPG",
+          items: [
+            {
+              id: "item_8502_1",
+              name: "LIFTER セルフェステ化粧水 (2+1組)",
+              note: "リフターモイストアップローション 2+1セット",
+              untaxedPrice: 1597,
+              taxedPrice: 1756,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8502_2",
+              name: "Melano CC 藥用黑斑集中保養美容液 (一般版)",
+              note: "20ml 經典款",
+              untaxedPrice: 980,
+              taxedPrice: 1078,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8502_3",
+              name: "Melano CC プレミアム美容液 (Premium 特濃版)",
+              note: "20ml 進階浸透版",
+              untaxedPrice: 1380,
+              taxedPrice: 1518,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8502_4",
+              name: "Yunth 生VC美白美容液",
+              note: "需拿空卡至櫃檯結帳・28包入",
+              untaxedPrice: 3600,
+              taxedPrice: 3960,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8502_5",
+              name: "Melano CC 美白化妝水 / 補充包",
+              note: "下排化妝水系列",
+              untaxedPrice: 880,
+              taxedPrice: 968,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8502_6",
+              name: "Melano CC 藥用保濕凝露 (ジェル)",
+              note: "右下角圓罐裝",
+              untaxedPrice: 1050,
+              taxedPrice: 1155,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_mk_ag",
+          title: "AG 點鼻藥貨架 (心齋橋南店標價)",
+          imageUrl: "./IMG_8503.JPG",
+          items: [
+            {
+              id: "item_mk_ag_1",
+              name: "AG エージーアレルカットC 30ml (清涼型點鼻藥)",
+              note: "第2類医薬品・30ml 大瓶",
+              compareKey: "ag_allercut_c_30",
+              untaxedPrice: 1980,
+              taxedPrice: 2178,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: "store_satudora",
+      name: "サツドラ 道頓堀店 (札幌藥妝)",
+      lat: 34.6689,
+      lon: 135.5020,
+      address: "大阪府大阪市中央区道頓堀1丁目 (松竹座對面，距離約 75m)",
+      cards: [
+        {
+          id: "card_sd_melanocc",
+          title: "Melano CC 美容液 (道頓堀店標價)",
+          imageUrl: "./IMG_8500.JPG",
+          items: [
+            {
+              id: "item_sd_melanocc_1",
+              name: "Melano CC 藥用黑斑集中保養美容液",
+              note: "メラノCC 薬用しみ集中対策美容液 20ml",
+              untaxedPrice: 1080,
+              taxedPrice: 1188,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_8501",
+          title: "Capsule Serum 生美容液專區 (IMG_8501)",
+          imageUrl: "./IMG_8501.JPG",
+          items: [
+            {
+              id: "item_8501_1",
+              name: "CPセラム G 美容液 (穀胱甘肽白玉生美容液)",
+              note: "30ml 白色包裝・グルタチオン配合",
+              untaxedPrice: 2255,
+              taxedPrice: 2480,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8501_2",
+              name: "CPセラム V 美容液 (生維他命C美容液)",
+              note: "30ml 黃色包裝・ビタミンC誘導体",
+              untaxedPrice: 2255,
+              taxedPrice: 2480,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8501_3",
+              name: "CPセラム A 美容液 (蝦紅素抗老生美容液)",
+              note: "30ml 橘色包裝・アスタキサンチン配合",
+              untaxedPrice: 2710,
+              taxedPrice: 2981,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_8503",
+          title: "AG 過敏點鼻藥專區 (IMG_8503)",
+          imageUrl: "./IMG_8503.JPG",
+          items: [
+            {
+              id: "item_8503_1",
+              name: "AG エージーアレルカットC 15ml (清涼型點鼻藥)",
+              note: "第2類医薬品・15ml 小瓶",
+              compareKey: "ag_allercut_c_15",
+              untaxedPrice: 1380,
+              taxedPrice: 1518,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_8503_2",
+              name: "AG エージーアレルカットC 30ml (清涼型點鼻藥)",
+              note: "第2類医薬品・30ml 大瓶",
+              compareKey: "ag_allercut_c_30",
+              untaxedPrice: 2180,
+              taxedPrice: 2398,
+              taxRate: 10,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+        {
+          id: "card_sd_blueberry",
+          title: "DHC 藍莓專區 (道頓堀特價架)",
+          imageUrl: "./IMG_8504.JPG",
+          items: [
+            {
+              id: "item_sd_blue_1",
+              name: "DHC 速攻藍莓 20日分 (速攻ブルーベリー)",
+              note: "40粒・道頓堀限定特惠 8%",
+              untaxedPrice: 890,
+              taxedPrice: 961,
+              taxRate: 8,
+              selected: false,
+              qty: 1,
+            },
+            {
+              id: "item_sd_blue_2",
+              name: "DHC 速攻藍莓 60日分 (速攻ブルーベリー)",
+              note: "120粒 大容量・道頓堀限定 8%",
+              untaxedPrice: 2450,
+              taxedPrice: 2646,
+              taxRate: 8,
+              selected: false,
+              qty: 1,
+            },
+          ],
+        },
+      ],
+    },
   ];
 }
 
@@ -456,6 +539,19 @@ async function initHighCapacityStorage() {
           savedInIdb.currentStoreId || savedInIdb.stores[0].id,
         stores: savedInIdb.stores,
       };
+      // 確保大阪心齋橋 3 家藥妝店皆存在且帶有定位座標
+      const builtIns = createBuiltInStores();
+      builtIns.forEach((bs) => {
+        const found = state.stores.find((s) => s.id === bs.id);
+        if (!found) {
+          state.stores.push(bs);
+        } else {
+          found.lat = bs.lat;
+          found.lon = bs.lon;
+          found.address = bs.address;
+        }
+      });
+      await idbSaveState(state);
       if (urlProvidedKey) {
         state.settings.apiKey = urlProvidedKey;
         await idbSaveState(state);
@@ -563,56 +659,927 @@ function formatTwd(yen) {
   return "NT$" + twd.toLocaleString("zh-TW");
 }
 
-// 跨店比價確定性輔助函式：找出其他商店是否有同名或相同 compareKey 的商品
-function findCrossStoreComparison(currentItem, currentStoreId) {
-  const normCurrent = normalizeProductName(currentItem);
-  if (!normCurrent) return null;
+// 清理商品名稱做智慧比對（去除括號補充說明、標點、空白）
+function cleanProductName(name) {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/[（(][^）)]*[）)]/g, "") // 移除非關鍵括號補充說明
+    .replace(/[【\[][^】\]]*[】\]]/g, "")
+    .replace(/[\s\-_・，,、。/\\+＋★]/g, "")
+    .trim();
+}
 
-  let bestMatch = null;
+function normalizeProductName(item) {
+  if (!item) return "";
+  if (item.compareKey && String(item.compareKey).trim()) {
+    return String(item.compareKey).trim().toLowerCase();
+  }
+  return cleanProductName(item.name);
+}
+
+// 判斷兩件商品是否為同款商品
+function isSameProduct(a, b) {
+  if (!a || !b) return false;
+  // 1. 若兩者都有 compareKey，以 compareKey 為絕對標準
+  const keyA = a.compareKey ? String(a.compareKey).trim().toLowerCase() : "";
+  const keyB = b.compareKey ? String(b.compareKey).trim().toLowerCase() : "";
+  if (keyA && keyB) {
+    return keyA === keyB;
+  }
+  // 2. 若其中一個 compareKey 與另一個名稱完全對應
+  const cleanA = cleanProductName(a.name);
+  const cleanB = cleanProductName(b.name);
+  if (keyA && cleanB && keyA === cleanB) return true;
+  if (keyB && cleanA && keyB === cleanA) return true;
+
+  // 3. 標準化名稱完全相同
+  if (cleanA && cleanB && cleanA === cleanB) return true;
+
+  return false;
+}
+
+// 取得同款商品在全手帳各家商店的全部標價（由未稅低到高排序）
+function getProductAllStorePrices(currentItem) {
+  const matches = [];
   for (const store of state.stores) {
-    if (store.id === currentStoreId) continue;
     for (const card of store.cards) {
       for (const item of card.items) {
-        const normOther = normalizeProductName(item);
-        if (normOther && normOther === normCurrent) {
-          if (
-            !bestMatch ||
-            item.untaxedPrice < bestMatch.item.untaxedPrice
-          ) {
-            bestMatch = { storeName: store.name, item };
-          }
+        if (isSameProduct(currentItem, item)) {
+          matches.push({
+            storeId: store.id,
+            storeName: store.name,
+            cardId: card.id,
+            cardTitle: card.title,
+            item,
+            untaxedPrice: Number(item.untaxedPrice) || 0,
+            taxedPrice: Number(item.taxedPrice) || 0,
+            selected: Boolean(item.selected),
+          });
         }
       }
     }
   }
-  if (!bestMatch) return null;
 
-  const diff = currentItem.untaxedPrice - bestMatch.item.untaxedPrice;
-  if (diff === 0) {
+  // 依照未稅價從低到高排序（最低價排最前面）
+  matches.sort((a, b) => a.untaxedPrice - b.untaxedPrice);
+  return matches;
+}
+
+// 跨店比價核心：精準找出同款商品的最低價、價差與最低價店家
+function findCrossStoreComparison(currentItem, currentStoreId) {
+  const matches = getProductAllStorePrices(currentItem);
+  if (matches.length <= 1) return null; // 僅有一家店記錄，無需比價
+
+  const lowestMatch = matches[0];
+  const currentUntaxed = Number(currentItem.untaxedPrice) || 0;
+  const isCurrentLowest = currentUntaxed <= lowestMatch.untaxedPrice;
+
+  // 取得其他商店的記錄
+  const otherStoreMatches = matches.filter((m) => m.storeId !== currentStoreId);
+  if (otherStoreMatches.length === 0) return null;
+
+  // 計算最低價商店的距離
+  const lowestStoreObj = state.stores.find((s) => s.id === lowestMatch.storeId);
+  const lowestStoreDist =
+    lastUserLocation && lowestStoreObj && lowestStoreObj.lat != null && lowestStoreObj.lon != null
+      ? calculateDistanceMeters(lastUserLocation.lat, lastUserLocation.lon, lowestStoreObj.lat, lowestStoreObj.lon)
+      : null;
+
+  if (isCurrentLowest) {
+    // 當前店家就是最低價！
+    const otherLowest = otherStoreMatches[0];
+    const diff = otherLowest.untaxedPrice - currentUntaxed;
+    const thisStore = state.stores.find((s) => s.id === currentStoreId) || getCurrentStore();
     return {
-      type: "same",
-      text: `與 ${bestMatch.storeName} 同價`,
-    };
-  } else if (diff < 0) {
-    return {
-      type: "cheaper",
-      text: `★ 比 ${bestMatch.storeName} 便宜 ¥${Math.abs(diff)}`,
+      type: diff > 0 ? "lowest" : "same",
+      isLowest: true,
+      text: diff > 0 ? `👑 最低價！比 ${otherLowest.storeName} 省 ¥${diff}` : `與 ${otherLowest.storeName} 同為最低價 ¥${currentUntaxed}`,
+      minPrice: currentUntaxed,
+      minTaxedPrice: Number(currentItem.taxedPrice) || Math.round(currentUntaxed * 1.1),
+      lowestStoreId: thisStore.id,
+      lowestStoreName: thisStore.name,
+      lowestStoreDist: null,
+      secondStoreName: otherLowest.storeName,
+      secondStorePrice: otherLowest.untaxedPrice,
+      diff,
+      matches,
     };
   } else {
+    // 另一家店才是最低價！
+    const diff = currentUntaxed - lowestMatch.untaxedPrice;
     return {
       type: "pricier",
-      text: `⚠️ ${bestMatch.storeName} 賣 ¥${bestMatch.item.untaxedPrice} (省 ¥${diff})`,
+      isLowest: false,
+      text: `⚠️ 附近 ${lowestMatch.storeName} 更便宜！最低 ¥${lowestMatch.untaxedPrice} (省 ¥${diff})`,
+      minPrice: lowestMatch.untaxedPrice,
+      minTaxedPrice: lowestMatch.taxedPrice,
+      lowestStoreId: lowestMatch.storeId,
+      lowestStoreName: lowestMatch.storeName,
+      lowestStoreDist,
+      diff,
+      matches,
     };
   }
 }
 
-function normalizeProductName(item) {
-  if (item.compareKey) return item.compareKey;
-  if (!item.name) return "";
-  return item.name
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[（）()・]/g, "");
+// 提取適合大國藥妝官方商城搜尋的日文與商品關鍵字
+function extractJapaneseSearchKeyword(item) {
+  if (!item || !item.name) return "";
+  const name = item.name;
+  const note = item.note || "";
+
+  // 1. 若括號內有日文品名 (如 (速攻ブルーベリー) 或 (薬用リップクリーム) 或 (EVE クイック DX))
+  const bracketMatch = (name + " " + note).match(/[（(]([ァ-ヴーぁ-んa-zA-Z0-9\s]+)[）)]/);
+
+  // 2. 提取乾淨的商品主名稱 (去除中文輔助詞與劑量規格詞，避免大國搜尋因"20日分"等字眼導致0搜尋結果)
+  const cleanName = name
+    .replace(/[（(][^）)]*[）)]/g, "")
+    .replace(/[【\[][^】\]]*[】\]]/g, "")
+    .replace(/\b(安妮亞限定款|經典款|一般款|限定特價|特惠|清涼款|上排標價|下排標價|頭痛藥|感冒藥|美白淡斑精華)\b/g, "")
+    .replace(/\s*\d+\s*(?:日分|天份|日|錠|粒|包|ml|g|枚|包裝)/gi, "")
+    .trim();
+
+  // 3. 若括號內有日文假名品名且字數充足，大國全球/日本商城對純日文名命中率極高
+  if (bracketMatch && bracketMatch[1].trim().length >= 2) {
+    let rawBracket = bracketMatch[1]
+      .replace(/\s*\d+\s*(?:日分|天份|日|錠|粒|包|ml|g|枚|包裝)/gi, "")
+      .trim();
+    const brand = cleanName.split(/\s+/)[0] || "";
+    if (brand && rawBracket.toLowerCase().startsWith(brand.toLowerCase())) {
+      return rawBracket;
+    }
+    if (brand && !rawBracket.includes(brand) && /^[a-zA-Z0-9]+$/.test(brand)) {
+      return `${brand} ${rawBracket}`.trim();
+    }
+    return rawBracket || cleanName;
+  }
+
+  return cleanName;
+}
+
+// 大國藥妝官方線上商城 (已依使用者需求刪除其他藥妝店與電商)
+// 注意：大國全球旗艦店搜尋參數為 ?keyword=，台灣官方商城為 /zh-TW/search?q=
+const FAMOUS_JP_DRUGSTORE_SITES = [
+  {
+    id: "daikoku_global",
+    name: "大國藥妝全球旗艦店",
+    badge: "日本直送",
+    getUrl: (q) => `https://www.dkglobal-daikokudrug.com/search?keyword=${encodeURIComponent(q)}`,
+  },
+  {
+    id: "daikoku_taiwan",
+    name: "大國藥妝台灣官方商城",
+    badge: "繁中直送",
+    getUrl: (q) => `https://www.daikokudrug-taiwan.com/zh-TW/search?q=${encodeURIComponent(q)}`,
+  },
+];
+
+// 快取電商行情報價結果
+const onlineBenchmarkCache = new Map();
+
+// 調用 Gemini API 估算大國藥妝官方線上商城行情
+async function fetchOnlineBenchmarkFromGemini(item) {
+  const cacheKey = item.name + "_" + (item.untaxedPrice || 0);
+  if (onlineBenchmarkCache.has(cacheKey)) {
+    return onlineBenchmarkCache.get(cacheKey);
+  }
+
+  const apiKey = state.settings.apiKey;
+  if (!apiKey) {
+    throw new Error("請先在手帳設定中填寫 Gemini API Key，即可啟用 AI 查詢大國藥妝線上商城行情");
+  }
+
+  const promptText = `你是一位日本大國藥妝(Daikoku Drug)比價專家。請針對下列日本藥妝商品，提供大國藥妝官方線上商城(全球旗艦店/台灣商城)的常見售價與日本官方建議售價(MSRP含稅)：
+商品名稱：${item.name}
+規格說明：${item.note || "一般規格"}
+旅客目前實體店未稅標價：¥${item.untaxedPrice} (含稅約 ¥${item.taxedPrice || Math.round(item.untaxedPrice * 1.1)})
+
+請以繁體中文只回傳純 JSON 格式（不要回傳額外 Markdown 說明）：
+{
+  "msrpTaxed": 2640,
+  "onlineMinTaxed": 2180,
+  "cheapestSiteName": "大國藥妝線上旗艦店",
+  "summary": "日本官方含稅定價約 ¥2,640，大國藥妝線上商城含稅約 ¥2,180。目前實體未稅價 ¥${item.untaxedPrice} 相比大國線上商城更便宜！",
+  "isPhysicalCheaper": true,
+  "diffYen": 180
+}`;
+
+  let modelName = "gemini-2.5-flash";
+  try {
+    const availableModels = await fetchAvailableGeminiModelsList(apiKey);
+    if (availableModels && availableModels.length > 0) {
+      modelName = availableModels[0];
+    }
+  } catch (_) {}
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+    }),
+    signal: controller.signal,
+  });
+  clearTimeout(timer);
+
+  if (!response.ok) {
+    throw new Error(`查詢大國藥妝線上行情失敗 (${response.status})`);
+  }
+
+  const data = await response.json();
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  const parsed = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
+  onlineBenchmarkCache.set(cacheKey, parsed);
+  return parsed;
+}
+
+function renderOnlineCompareHtml(item) {
+  const keyword = extractJapaneseSearchKeyword(item);
+  const chipsHtml = FAMOUS_JP_DRUGSTORE_SITES.map((site) => {
+    const url = site.getUrl(keyword);
+    return `
+      <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="jp-site-chip" title="在新分頁開啟 ${site.name} 查即時底價">
+        <span>${escapeHtml(site.name)}</span>
+        <span class="site-badge">${escapeHtml(site.badge)} ↗</span>
+      </a>
+    `;
+  }).join("");
+
+  return `
+    <div class="online-compare-box" data-item-id="${escapeHtml(item.id)}">
+      <div class="online-compare-header">
+        <strong>🌐 比對大國藥妝線上商城 (Daikoku Online)</strong>
+        <button type="button" class="mini-btn btn-query-online-bench" data-item-id="${escapeHtml(item.id)}">
+          🤖 AI 查大國藥妝線上價
+        </button>
+      </div>
+      <div class="jp-sites-grid">
+        ${chipsHtml}
+      </div>
+      <div class="online-bench-result hidden" id="onlineBench_${escapeHtml(item.id)}"></div>
+    </div>
+  `;
+}
+
+function bindOnlineCompareEvents(container, item) {
+  const btnQuery = container.querySelector(".btn-query-online-bench");
+  const benchResult = container.querySelector(".online-bench-result");
+  if (btnQuery && benchResult) {
+    btnQuery.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      btnQuery.disabled = true;
+      btnQuery.textContent = "⏳ 查詢中...";
+      benchResult.classList.remove("hidden");
+      benchResult.innerHTML = `<span style="color:var(--ink-muted); font-size:0.75rem;">正在向大國藥妝線上商城查詢行情報價...</span>`;
+
+      try {
+        const bench = await fetchOnlineBenchmarkFromGemini(item);
+        benchResult.className = `online-bench-result online-ai-benchmark ${bench.isPhysicalCheaper ? "cheaper" : "pricier"}`;
+        benchResult.innerHTML = `
+          <div class="online-bench-row">
+            <span><strong>${bench.isPhysicalCheaper ? "🎉 實體店比大國線上商城划算！" : "⚠️ 大國線上商城可能更便宜"}</strong></span>
+            <span>日本官方含稅定價：<strong>${formatYen(bench.msrpTaxed)}</strong></span>
+          </div>
+          <div>${escapeHtml(bench.summary)}</div>
+          <div style="font-size:0.72rem; color:var(--ink-muted); margin-top:4px;">
+            指標平台：<strong>${escapeHtml(bench.cheapestSiteName || "大國藥妝線上旗艦店")}</strong> 網購含稅約 ${formatYen(bench.onlineMinTaxed)}
+          </div>
+        `;
+        btnQuery.textContent = "✓ 已完成日本電商比價";
+      } catch (err) {
+        benchResult.className = "online-bench-result online-ai-benchmark";
+        benchResult.innerHTML = `
+          <div style="color: var(--accent-persimmon); font-size: 0.76rem;">
+            ⚠️ ${escapeHtml(err.message)}
+          </div>
+          <div style="font-size: 0.72rem; color: var(--ink-muted); margin-top: 3px;">
+            您仍可直接點擊上方 <strong>価格.com</strong> 或 <strong>松本清官網</strong> 按鈕，一鍵在新分頁查看即時底價！
+          </div>
+        `;
+        btnQuery.textContent = "重試 AI 查詢";
+        btnQuery.disabled = false;
+      }
+    });
+  }
+}
+
+// 供按鈕點擊時執行：確認是否為最低價，若不是則在品項旁/下方詳細顯示哪家店有低價與價位
+function evaluateAndDisplayLowestResult(item, storeId, resultContainer) {
+  if (!resultContainer) return;
+  const comp = findCrossStoreComparison(item, storeId);
+  resultContainer.classList.remove("hidden", "lowest-success", "lowest-warning", "lowest-info");
+
+  if (!comp) {
+    resultContainer.classList.add("lowest-info");
+    resultContainer.innerHTML = `
+      <div class="result-title">ℹ️ 尚無其他分店比價資料</div>
+      <div>目前只有【${escapeHtml(getCurrentStore().name)}】記錄了此商品（未稅 ${formatYen(item.untaxedPrice)}）。可至附近其他分店新增照片或商品進行即時比價。</div>
+    `;
+    const onlineWrapper = document.createElement("div");
+    onlineWrapper.innerHTML = renderOnlineCompareHtml(item);
+    resultContainer.appendChild(onlineWrapper);
+    bindOnlineCompareEvents(onlineWrapper, item);
+    return;
+  }
+
+  if (comp.isLowest) {
+    resultContainer.classList.add("lowest-success");
+    const otherText = comp.secondStoreName
+      ? `，比附近的【${escapeHtml(comp.secondStoreName)}】未稅價 (${formatYen(comp.secondStorePrice)}) 便宜 <strong>¥${comp.diff}</strong>`
+      : "";
+    resultContainer.innerHTML = `
+      <div class="result-title">🎉 本店就是最低價！</div>
+      <div>目前未稅價 <strong>${formatYen(item.untaxedPrice)}</strong> (${formatTwd(item.untaxedPrice)})${otherText}！可安心在本店採購。</div>
+    `;
+  } else {
+    resultContainer.classList.add("lowest-warning");
+    const distText = comp.lowestStoreDist != null ? `（距離此處約 ${formatDistance(comp.lowestStoreDist)}）` : "";
+    resultContainer.innerHTML = `
+      <div class="result-title">⚠️ 附近【${escapeHtml(comp.lowestStoreName)}】有更低價！</div>
+      <div>
+        該店最低價：未稅 <strong class="price-highlight">${formatYen(comp.minPrice)}</strong> 
+        <span style="font-size:0.75rem;">(含稅 ${formatYen(comp.minTaxedPrice)})</span>
+        ｜ 比本店便宜 <strong style="color:var(--accent-persimmon);">¥${comp.diff}</strong> (${formatTwd(comp.diff)})！
+      </div>
+      <div style="font-size: 0.73rem; color: var(--ink-muted); margin-top: 3px;">
+        📍 建議前往：${escapeHtml(comp.lowestStoreName)} ${distText}
+      </div>
+      <div class="result-actions">
+        <button type="button" class="mini-btn btn-jump-to-lowest" data-store-id="${comp.lowestStoreId}">
+          👉 切換至【${escapeHtml(comp.lowestStoreName)}】查看
+        </button>
+      </div>
+    `;
+
+    resultContainer.querySelector(".btn-jump-to-lowest")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.currentStoreId = comp.lowestStoreId;
+      saveState();
+      renderApp();
+      showToast(`已切換至「${comp.lowestStoreName}」`);
+    });
+  }
+
+  // 附加上日本知名藥妝網站比價區塊
+  const onlineWrapper = document.createElement("div");
+  onlineWrapper.innerHTML = renderOnlineCompareHtml(item);
+  resultContainer.appendChild(onlineWrapper);
+  bindOnlineCompareEvents(onlineWrapper, item);
+}
+
+// 取得全手帳所有同款商品跨店最低價總表
+function getAllProductsComparisonList() {
+  const groups = [];
+
+  for (const store of state.stores) {
+    for (const card of store.cards) {
+      for (const item of card.items) {
+        let foundGroup = groups.find((g) => isSameProduct(g.sampleItem, item));
+        const entry = {
+          storeId: store.id,
+          storeName: store.name,
+          cardId: card.id,
+          cardTitle: card.title,
+          item,
+          untaxedPrice: Number(item.untaxedPrice) || 0,
+          taxedPrice: Number(item.taxedPrice) || 0,
+          selected: Boolean(item.selected),
+        };
+
+        if (foundGroup) {
+          foundGroup.stores.push(entry);
+        } else {
+          groups.push({
+            sampleItem: item,
+            name: item.name,
+            note: item.note,
+            stores: [entry],
+          });
+        }
+      }
+    }
+  }
+
+  // 整理每個群組的最低價與統計
+  const list = groups.map((group) => {
+    group.stores.sort((a, b) => a.untaxedPrice - b.untaxedPrice);
+    const minUntaxed = group.stores[0].untaxedPrice;
+    const maxUntaxed = group.stores[group.stores.length - 1].untaxedPrice;
+    const lowestEntries = group.stores.filter((s) => s.untaxedPrice === minUntaxed);
+    const lowestStoreNames = [...new Set(lowestEntries.map((s) => s.storeName))];
+    const diff = maxUntaxed - minUntaxed;
+    const storeCount = new Set(group.stores.map((s) => s.storeId)).size;
+
+    return {
+      ...group,
+      minUntaxed,
+      maxUntaxed,
+      lowestStoreNames,
+      diff,
+      storeCount,
+    };
+  });
+
+  // 排序：價差最大的排前面，多店皆有的排前面
+  list.sort((a, b) => {
+    if (b.diff !== a.diff) return b.diff - a.diff;
+    return b.storeCount - a.storeCount;
+  });
+
+  return list;
+}
+
+// 開啟單一商品跨店比價彈窗
+function openItemCompareModal(item) {
+  const matches = getProductAllStorePrices(item);
+  const modal = document.getElementById("itemCompareModal");
+  const headerEl = document.getElementById("itemCompareProductHeader");
+  const listEl = document.getElementById("itemCompareStoreList");
+
+  if (!modal || !headerEl || !listEl || matches.length === 0) return;
+
+  const lowest = matches[0];
+  headerEl.innerHTML = `
+    <h4>${escapeHtml(item.name)}</h4>
+    ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+    <div style="margin-top: 6px; font-size: 0.82rem; font-weight: 700; color: #1a5631;">
+      👑 全手帳最低價：${escapeHtml(lowest.storeName)}（未稅 ${formatYen(lowest.untaxedPrice)} / 含稅 ${formatYen(lowest.taxedPrice)}）
+    </div>
+  `;
+
+  listEl.innerHTML = "";
+  matches.forEach((m) => {
+    const isLowest = m.untaxedPrice === lowest.untaxedPrice;
+    const diff = m.untaxedPrice - lowest.untaxedPrice;
+    const isCurrent = m.storeId === state.currentStoreId;
+
+    const row = document.createElement("div");
+    row.className = `compare-store-card ${isLowest ? "is-lowest" : ""}`;
+    row.innerHTML = `
+      <div class="compare-store-info">
+        <div class="store-name">
+          ${escapeHtml(m.storeName)}
+          ${isLowest ? '<span class="lowest-spotlight-badge" style="font-size:0.7rem; padding: 1px 6px;">最低價 👑</span>' : ""}
+          ${isCurrent ? '<span style="font-size:0.7rem; color:var(--accent-sage); font-weight:600;">(目前商店)</span>' : ""}
+        </div>
+        <div class="price-sub">
+          未稅 ${formatYen(m.untaxedPrice)} (${formatTwd(m.untaxedPrice)}) ｜ 含稅 ${formatYen(m.taxedPrice)} (${formatTwd(m.taxedPrice)})
+        </div>
+      </div>
+      <div class="compare-store-right">
+        ${
+          diff > 0
+            ? `<span style="font-size:0.78rem; color:var(--accent-persimmon); font-weight:700;">+¥${diff} (${formatTwd(diff)})</span>`
+            : `<span style="font-size:0.78rem; color:#1a5631; font-weight:700;">★ 最低價</span>`
+        }
+        ${
+          !isCurrent
+            ? `<button type="button" class="mini-btn btn-jump-store" data-store-id="${m.storeId}">切換到此店</button>`
+            : `<span style="font-size:0.75rem; color:var(--ink-muted);">本店商品</span>`
+        }
+      </div>
+    `;
+
+    const jumpBtn = row.querySelector(".btn-jump-store");
+    if (jumpBtn) {
+      jumpBtn.addEventListener("click", () => {
+        state.currentStoreId = m.storeId;
+        saveState();
+        modal.classList.add("hidden");
+        renderApp();
+        showToast(`已切換至「${m.storeName}」`);
+      });
+    }
+
+    listEl.appendChild(row);
+  });
+
+  const onlineWrapper = document.createElement("div");
+  onlineWrapper.innerHTML = renderOnlineCompareHtml(item);
+  listEl.appendChild(onlineWrapper);
+  bindOnlineCompareEvents(onlineWrapper, item);
+
+  modal.classList.remove("hidden");
+}
+
+// 開啟跨店最低價搜尋視窗
+function openLowestPriceFinderModal() {
+  const modal = document.getElementById("lowestPriceModal");
+  if (!modal) return;
+  renderLowestPriceModal();
+  modal.classList.remove("hidden");
+}
+
+function renderLowestPriceModal() {
+  const searchInput = document.getElementById("lowestPriceSearchInput");
+  const chkOnlyMulti = document.getElementById("chkOnlyMultiStore");
+  const bannerEl = document.getElementById("lowestPriceStatsBanner");
+  const listEl = document.getElementById("lowestPriceList");
+
+  const query = (searchInput ? searchInput.value : "").trim().toLowerCase();
+  const onlyMulti = chkOnlyMulti ? chkOnlyMulti.checked : false;
+
+  const allList = getAllProductsComparisonList();
+  const totalItems = allList.length;
+  const multiStoreItems = allList.filter((g) => g.storeCount > 1);
+  const diffItems = allList.filter((g) => g.diff > 0);
+  const maxSavingsTotal = diffItems.reduce((sum, g) => sum + g.diff, 0);
+
+  if (bannerEl) {
+    bannerEl.innerHTML = `
+      💡 <strong>比價雷達概況：</strong>手帳共記錄 <strong>${totalItems}</strong> 款商品，其中 <strong>${multiStoreItems.length}</strong> 款在多店有價格，<strong>${diffItems.length}</strong> 款存在價差！各買一件改選最低價店家可省 <strong>¥${maxSavingsTotal.toLocaleString("ja-JP")}</strong> (${formatTwd(maxSavingsTotal)})。
+    `;
+  }
+
+  let filtered = allList;
+  if (onlyMulti) {
+    filtered = filtered.filter((g) => g.storeCount > 1);
+  }
+  if (query) {
+    filtered = filtered.filter(
+      (g) =>
+        g.name.toLowerCase().includes(query) ||
+        (g.note && g.note.toLowerCase().includes(query)) ||
+        g.stores.some((s) => s.storeName.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align: center; padding: 32px 16px; color: var(--ink-muted); font-size: 0.88rem;">
+        無符合的商品資料。可取消勾選「只看多店有標價」或更改搜尋關鍵字。
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = "";
+  filtered.forEach((group) => {
+    const cardEl = document.createElement("div");
+    cardEl.className = "lowest-product-card";
+
+    const rowsHtml = group.stores
+      .map((st) => {
+        const isLowest = st.untaxedPrice === group.minUntaxed;
+        const diff = st.untaxedPrice - group.minUntaxed;
+        const isCurrent = st.storeId === state.currentStoreId;
+        return `
+          <div class="lowest-store-row ${isLowest ? "is-lowest" : ""}">
+            <div class="lowest-store-name">
+              <span>${isLowest ? "👑" : "・"}</span>
+              <strong>${escapeHtml(st.storeName)}</strong>
+              ${isCurrent ? '<span style="font-size: 0.7rem; color: var(--accent-sage);">(目前)</span>' : ""}
+            </div>
+            <div class="lowest-store-prices">
+              <span class="price-yen">¥${st.untaxedPrice.toLocaleString("ja-JP")}</span>
+              <span class="price-diff">${diff > 0 ? `+¥${diff}` : "(最低價)"}</span>
+              ${
+                !isCurrent
+                  ? `<button type="button" class="mini-btn btn-jump-store" data-store-id="${st.storeId}">切換</button>`
+                  : ""
+              }
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    cardEl.innerHTML = `
+      <div class="lowest-card-head">
+        <div>
+          <div class="product-name">${escapeHtml(group.name)}</div>
+          ${group.note ? `<div class="product-note">${escapeHtml(group.note)}</div>` : ""}
+        </div>
+        <div class="lowest-spotlight-badge">
+          👑 最低價 ¥${group.minUntaxed.toLocaleString("ja-JP")}
+        </div>
+      </div>
+      <div class="lowest-store-table">
+        ${rowsHtml}
+      </div>
+      <div class="jp-sites-grid" style="margin-top: 6px;">
+        <span style="font-size:0.7rem; color:var(--ink-muted); align-self:center;">大國線上商城：</span>
+        ${FAMOUS_JP_DRUGSTORE_SITES.map((site) => `
+          <a href="${escapeHtml(site.getUrl(extractJapaneseSearchKeyword(group.sampleItem)))}" target="_blank" rel="noopener noreferrer" class="jp-site-chip" title="開啟 ${site.name} 查底價">
+            <span>${escapeHtml(site.name)} ↗</span>
+          </a>
+        `).join("")}
+      </div>
+    `;
+
+    cardEl.querySelectorAll(".btn-jump-store").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetStoreId = btn.dataset.storeId;
+        state.currentStoreId = targetStoreId;
+        saveState();
+        document.getElementById("lowestPriceModal").classList.add("hidden");
+        renderApp();
+        showToast("已切換商店");
+      });
+    });
+
+    listEl.appendChild(cardEl);
+  });
+}
+
+// 計算兩個經緯度之間的公尺距離 (Haversine Formula)
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const R = 6371e3; // 地球半徑 (公尺)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
+function formatDistance(meters) {
+  if (meters == null || isNaN(meters)) return "";
+  if (meters < 1000) return `約 ${meters} 公尺`;
+  return `約 ${(meters / 1000).toFixed(1)} 公里`;
+}
+
+let lastUserLocation = { ...OSAKA_PRESET_LOCATION };
+
+// 判斷目前位置附近店家主函式（預設以大阪心齋橋道頓堀 34.6687, 135.5012 為起點，亦支援手機 GPS 即時覆蓋）
+function detectNearbyStores(forceGps = false) {
+  const modal = document.getElementById("nearbyStoresModal");
+  const titleEl = document.getElementById("currentLocationTitle");
+  const coordsEl = document.getElementById("currentLocationCoords");
+  const discListEl = document.getElementById("nearbyDiscoveredStoresList");
+  const spinnerEl = document.getElementById("nearbySearchSpinner");
+
+  modal.classList.remove("hidden");
+  titleEl.textContent = `📍 目前定位：${lastUserLocation.address || "大阪心齋橋筋與道頓堀交會處附近"}`;
+  coordsEl.textContent = `緯度 ${lastUserLocation.lat.toFixed(4)}, 經度 ${lastUserLocation.lon.toFixed(4)}`;
+
+  // 即時繪製手帳內 3 家附近藥妝店（依心齋橋距離近到遠排序）
+  renderNearbySavedStores(lastUserLocation);
+  discListEl.innerHTML = `<div style="padding: 12px; color: var(--ink-muted); font-size: 0.8rem; text-align: center;">正在搜尋此座標周遭藥妝店與商場...</div>`;
+
+  // 抓取線上附近藥妝店 (預設心齋橋道頓堀)
+  fetchDiscoveredNearbyStores(lastUserLocation.lat, lastUserLocation.lon);
+
+  if (forceGps) {
+    if (!navigator.geolocation) {
+      showToast("⚠️ 此瀏覽器不支援手機 GPS 即時定位！已維持心齋橋預設座標");
+      return;
+    }
+
+    titleEl.textContent = "正在透過手機 GPS 獲取實際位置...";
+    if (spinnerEl) spinnerEl.classList.remove("hidden");
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        lastUserLocation = { lat, lon, address: "手機 GPS 即時定位位置" };
+
+        coordsEl.textContent = `緯度 ${lat.toFixed(5)}, 經度 ${lon.toFixed(5)}（誤差約 ±${Math.round(pos.coords.accuracy || 10)}m）`;
+        renderNearbySavedStores(lastUserLocation);
+
+        // 反向地理編碼
+        try {
+          const revController = new AbortController();
+          const timeoutRev = setTimeout(() => revController.abort(), 6000);
+          const revRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ja,zh-TW,en`,
+            { signal: revController.signal }
+          );
+          clearTimeout(timeoutRev);
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            const addr = revData.display_name || "";
+            const parts = addr.split(",").slice(0, 3).join(", ");
+            lastUserLocation.address = parts || "GPS 定位成功";
+            titleEl.textContent = `📍 目前所在位置：${lastUserLocation.address}`;
+          }
+        } catch (_) {}
+
+        fetchDiscoveredNearbyStores(lat, lon);
+      },
+      (err) => {
+        titleEl.textContent = `📍 目前定位：${lastUserLocation.address}`;
+        showToast("無法取得手機 GPS，已維持大阪心齋橋道頓堀座標");
+        if (spinnerEl) spinnerEl.classList.add("hidden");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+}
+
+async function fetchDiscoveredNearbyStores(lat, lon) {
+  const discListEl = document.getElementById("nearbyDiscoveredStoresList");
+  const spinnerEl = document.getElementById("nearbySearchSpinner");
+  if (spinnerEl) spinnerEl.classList.remove("hidden");
+
+  try {
+    const delta = 0.015;
+    const searchController = new AbortController();
+    const timeoutSearch = setTimeout(() => searchController.abort(), 8000);
+    const searchRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=pharmacy&bounded=1&viewbox=${lon - delta},${lat + delta},${lon + delta},${lat - delta}&limit=12&accept-language=ja,zh-TW,en`,
+      { signal: searchController.signal }
+    );
+    clearTimeout(timeoutSearch);
+
+    let places = [];
+    if (searchRes.ok) {
+      places = await searchRes.json();
+    }
+    renderDiscoveredNearbyStores(places, { lat, lon });
+  } catch (err) {
+    if (discListEl) {
+      discListEl.innerHTML = `<div style="padding: 12px; color: var(--ink-muted); font-size: 0.8rem; text-align: center;">無法連線外部地圖搜尋附近店家，您仍可點擊上方「手帳中的店家」切換心齋橋 3 家藥妝店。</div>`;
+    }
+  } finally {
+    if (spinnerEl) spinnerEl.classList.add("hidden");
+  }
+}
+
+function renderNearbySavedStores(coords) {
+  const container = document.getElementById("nearbySavedStoresList");
+  if (!container) return;
+
+  const storesWithDist = state.stores.map((s) => {
+    const dist =
+      coords && s.lat != null && s.lon != null
+        ? calculateDistanceMeters(coords.lat, coords.lon, s.lat, s.lon)
+        : null;
+    return { store: s, dist };
+  });
+
+  // 依距離排序（有距離的放前面由近到遠，沒距離的放後面）
+  storesWithDist.sort((a, b) => {
+    if (a.dist != null && b.dist != null) return a.dist - b.dist;
+    if (a.dist != null) return -1;
+    if (b.dist != null) return 1;
+    return 0;
+  });
+
+  container.innerHTML = "";
+  storesWithDist.forEach(({ store, dist }) => {
+    const isCurrent = store.id === state.currentStoreId;
+    const itemEl = document.createElement("div");
+    itemEl.className = `nearby-item ${isCurrent ? "current-store" : ""}`;
+
+    itemEl.innerHTML = `
+      <div class="nearby-item-main">
+        <div class="nearby-item-name">
+          <span>🏪 ${escapeHtml(store.name)}</span>
+          ${isCurrent ? '<span class="active-store-tag">目前所在</span>' : ""}
+        </div>
+        ${store.address ? `<div class="nearby-item-addr">${escapeHtml(store.address)}</div>` : ""}
+        ${dist != null ? `<div class="nearby-item-dist">${formatDistance(dist)}</div>` : '<div class="nearby-item-addr" style="color:var(--ink-light);">尚未設定 GPS 座標</div>'}
+      </div>
+      <div class="nearby-item-actions">
+        ${
+          !isCurrent
+            ? `<button type="button" class="mini-btn btn-switch-store">👉 切換</button>`
+            : ""
+        }
+        ${
+          coords
+            ? `<button type="button" class="mini-btn btn-pin-here" title="將目前位置存為本店位置">📌 綁定此處</button>`
+            : ""
+        }
+      </div>
+    `;
+
+    const switchBtn = itemEl.querySelector(".btn-switch-store");
+    if (switchBtn) {
+      switchBtn.addEventListener("click", () => {
+        state.currentStoreId = store.id;
+        saveState();
+        document.getElementById("nearbyStoresModal").classList.add("hidden");
+        renderApp();
+        showToast(`已切換至「${store.name}」`);
+      });
+    }
+
+    const pinBtn = itemEl.querySelector(".btn-pin-here");
+    if (pinBtn) {
+      pinBtn.addEventListener("click", () => {
+        store.lat = coords.lat;
+        store.lon = coords.lon;
+        const currentTitle = document.getElementById("currentLocationTitle")?.textContent || "";
+        if (currentTitle && currentTitle.includes("：")) {
+          store.address = currentTitle.split("：")[1].trim();
+        }
+        saveState();
+        renderNearbySavedStores(coords);
+        renderApp();
+        showToast(`已將目前 GPS 綁定至「${store.name}」`);
+      });
+    }
+
+    container.appendChild(itemEl);
+  });
+}
+
+function renderDiscoveredNearbyStores(places, coords) {
+  const container = document.getElementById("nearbyDiscoveredStoresList");
+  if (!container) return;
+
+  if (!places || places.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 12px; color: var(--ink-muted); font-size: 0.8rem; text-align: center;">
+        此 GPS 位置方圓 1.5 公里內未找到標記藥局/藥妝店。您仍可點擊「＋ 新增商店」手動命名。
+      </div>
+    `;
+    return;
+  }
+
+  const uniquePlaces = [];
+  const seenNames = new Set();
+
+  places.forEach((p) => {
+    const rawName = p.name || (p.display_name ? p.display_name.split(",")[0] : "附近商店");
+    if (!seenNames.has(rawName)) {
+      seenNames.add(rawName);
+      const pLat = parseFloat(p.lat);
+      const pLon = parseFloat(p.lon);
+      const dist = coords ? calculateDistanceMeters(coords.lat, coords.lon, pLat, pLon) : null;
+      uniquePlaces.push({
+        name: rawName,
+        lat: pLat,
+        lon: pLon,
+        address: p.display_name ? p.display_name.split(",").slice(1, 3).join(",") : "",
+        dist,
+      });
+    }
+  });
+
+  uniquePlaces.sort((a, b) => (a.dist || 999999) - (b.dist || 999999));
+
+  container.innerHTML = "";
+  uniquePlaces.forEach((place) => {
+    const existing = state.stores.find((s) => s.name === place.name || s.name.includes(place.name));
+    const itemEl = document.createElement("div");
+    itemEl.className = "nearby-item";
+
+    itemEl.innerHTML = `
+      <div class="nearby-item-main">
+        <div class="nearby-item-name">
+          <span>💊 ${escapeHtml(place.name)}</span>
+          ${existing ? '<span style="font-size:0.7rem; color:var(--accent-sage); font-weight:600;">(手帳已建)</span>' : ""}
+        </div>
+        ${place.address ? `<div class="nearby-item-addr">${escapeHtml(place.address)}</div>` : ""}
+        ${place.dist != null ? `<div class="nearby-item-dist">${formatDistance(place.dist)}</div>` : ""}
+      </div>
+      <div class="nearby-item-actions">
+        ${
+          existing
+            ? `<button type="button" class="mini-btn btn-switch-disc">👉 切換至此店</button>`
+            : `<button type="button" class="mini-btn btn-add-disc">➕ 加入手帳並切換</button>`
+        }
+      </div>
+    `;
+
+    const switchBtn = itemEl.querySelector(".btn-switch-disc");
+    if (switchBtn) {
+      switchBtn.addEventListener("click", () => {
+        state.currentStoreId = existing.id;
+        saveState();
+        document.getElementById("nearbyStoresModal").classList.add("hidden");
+        renderApp();
+        showToast(`已切換至「${existing.name}」`);
+      });
+    }
+
+    const addBtn = itemEl.querySelector(".btn-add-disc");
+    if (addBtn) {
+      addBtn.addEventListener("click", () => {
+        const newStore = {
+          id: "store_" + Date.now(),
+          name: place.name,
+          lat: place.lat,
+          lon: place.lon,
+          address: place.address,
+          cards: [],
+        };
+        state.stores.push(newStore);
+        state.currentStoreId = newStore.id;
+        saveState();
+        document.getElementById("nearbyStoresModal").classList.add("hidden");
+        renderApp();
+        showToast(`已新增並切換至「${place.name}」！`);
+      });
+    }
+
+    container.appendChild(itemEl);
+  });
 }
 
 // 繪製整個畫面
@@ -759,6 +1726,7 @@ function renderPhotoCards() {
           <p class="photo-hint" ${hintColorStyle}>${escapeHtml(hintText)}</p>
           <div class="photo-card-actions">
             <button class="mini-btn btn-add-subitem" data-card-id="${card.id}">＋ 新增此圖商品</button>
+            <button class="mini-btn highlight-pill btn-check-card-lowest" data-card-id="${card.id}" title="一鍵確認這張照片中所有商品是否為最低價">🔍 一鍵查此圖最低價</button>
             ${
               card.imageUrl
                 ? `<button class="mini-btn btn-rescan-ai" data-card-id="${card.id}">✨ AI 重新辨識</button>`
@@ -789,6 +1757,19 @@ function renderPhotoCards() {
       rescanBtn.addEventListener("click", () => rescanCardWithAI(card));
     }
 
+    const checkCardBtn = cardEl.querySelector(".btn-check-card-lowest");
+    if (checkCardBtn) {
+      checkCardBtn.addEventListener("click", () => {
+        card.items.forEach((it) => {
+          const resEl = cardEl.querySelector(`#lowestResult_${it.id}`);
+          if (resEl) {
+            evaluateAndDisplayLowestResult(it, store.id, resEl);
+          }
+        });
+        showToast(`已完成此圖 ${card.items.length} 件商品的最低價比對！`);
+      });
+    }
+
     cardEl.querySelector(".btn-delete-card").addEventListener("click", () => {
       showConfirmModal(
         `確定要刪除「${card.title}」這張照片與裡面的商品嗎？`,
@@ -808,10 +1789,9 @@ function renderPhotoCards() {
       itemEl.className = `product-item ${item.selected ? "selected" : ""}`;
 
       const comparison = findCrossStoreComparison(item, store.id);
-      const compareBadgeHtml =
-        comparison && comparison.type !== "same"
-          ? `<span class="compare-badge ${comparison.type}">${escapeHtml(comparison.text)}</span>`
-          : "";
+      const compareBadgeHtml = comparison
+        ? `<span class="compare-badge ${comparison.type}" title="點擊查看所有店家標價明細">${escapeHtml(comparison.text)} ▾</span>`
+        : "";
 
       itemEl.innerHTML = `
         <div class="product-top-row">
@@ -828,6 +1808,7 @@ function renderPhotoCards() {
             </div>
           </div>
           <div class="item-action-btns">
+            <button class="check-lowest-btn" type="button" title="按下去確認是否為最低價">🔍 查最低價</button>
             <button class="edit-item-btn" type="button" title="編輯名稱與價格">✎ 編輯</button>
             <button class="delete-item-btn" type="button" title="刪除此偵測品項">✕ 刪除</button>
           </div>
@@ -851,13 +1832,15 @@ function renderPhotoCards() {
             <button class="qty-btn btn-plus" type="button">＋</button>
           </div>
         </div>
+        <div class="item-lowest-result hidden" id="lowestResult_${item.id}"></div>
       `;
 
       // 點擊卡片主體切換勾選
       itemEl.addEventListener("click", (e) => {
         if (
           e.target.closest(".qty-controls") ||
-          e.target.closest(".item-action-btns")
+          e.target.closest(".item-action-btns") ||
+          e.target.closest(".compare-badge")
         ) {
           return;
         }
@@ -868,6 +1851,31 @@ function renderPhotoCards() {
         saveState();
         renderApp();
       });
+
+      // 點擊比價徽章開啟跨店比價明細
+      const badgeEl = itemEl.querySelector(".compare-badge");
+      if (badgeEl) {
+        badgeEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openItemCompareModal(item);
+        });
+      }
+
+      // 按鈕：按下去確認是否為最低價，若不是則顯示附近哪家店有低價、價位多少
+      const checkLowestBtn = itemEl.querySelector(".check-lowest-btn");
+      const resultBox = itemEl.querySelector(".item-lowest-result");
+      if (checkLowestBtn && resultBox) {
+        checkLowestBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!resultBox.classList.contains("hidden")) {
+            resultBox.classList.add("hidden");
+            checkLowestBtn.classList.remove("active");
+          } else {
+            evaluateAndDisplayLowestResult(item, store.id, resultBox);
+            checkLowestBtn.classList.add("active");
+          }
+        });
+      }
 
       // 編輯按鈕
       itemEl.querySelector(".edit-item-btn").addEventListener("click", (e) => {
@@ -1659,6 +2667,10 @@ function openItemModal(cardId, itemId) {
   document.getElementById("inputItemName").value = existingItem
     ? existingItem.name
     : "";
+  const compareKeyEl = document.getElementById("inputItemCompareKey");
+  if (compareKeyEl) {
+    compareKeyEl.value = existingItem ? (existingItem.compareKey || "") : "";
+  }
   document.getElementById("inputItemNote").value = existingItem
     ? existingItem.note || ""
     : "";
@@ -1792,16 +2804,30 @@ function openStoreModal(mode) {
   const titleEl = document.getElementById("storeModalTitle");
   const nameInput = document.getElementById("inputStoreName");
   const dangerZone = document.getElementById("storeDangerZone");
+  const gpsText = document.getElementById("storeGpsInfoText");
+  const latInput = document.getElementById("inputStoreLat");
+  const lonInput = document.getElementById("inputStoreLon");
 
   modeInput.value = mode;
   if (mode === "add") {
     titleEl.textContent = "＋ 新增商店";
     nameInput.value = "";
+    if (latInput) latInput.value = "";
+    if (lonInput) lonInput.value = "";
+    if (gpsText) gpsText.textContent = "尚未綁定 GPS 位置";
     dangerZone.classList.add("hidden");
   } else {
     const store = getCurrentStore();
     titleEl.textContent = `🏪 管理商店：${store.name}`;
     nameInput.value = store.name;
+    if (latInput) latInput.value = store.lat != null ? store.lat : "";
+    if (lonInput) lonInput.value = store.lon != null ? store.lon : "";
+    if (gpsText) {
+      gpsText.textContent =
+        store.lat != null && store.lon != null
+          ? `📍 已綁定 (緯度: ${Number(store.lat).toFixed(4)}, 經度: ${Number(store.lon).toFixed(4)})${store.address ? ` - ${store.address}` : ""}`
+          : "尚未綁定 GPS 位置";
+    }
     dangerZone.classList.remove("hidden");
   }
 
@@ -2003,6 +3029,9 @@ function bindEvents() {
   document.getElementById("btnSaveStoreName").addEventListener("click", () => {
     const mode = document.getElementById("storeModalMode").value;
     const name = document.getElementById("inputStoreName").value.trim();
+    const latVal = parseFloat(document.getElementById("inputStoreLat")?.value);
+    const lonVal = parseFloat(document.getElementById("inputStoreLon")?.value);
+
     if (!name) {
       showToast("請輸入商店名稱！");
       return;
@@ -2011,6 +3040,8 @@ function bindEvents() {
       const newStore = {
         id: "store_" + Date.now(),
         name,
+        lat: !isNaN(latVal) ? latVal : null,
+        lon: !isNaN(lonVal) ? lonVal : null,
         cards: [],
       };
       state.stores.push(newStore);
@@ -2019,12 +3050,45 @@ function bindEvents() {
     } else {
       const store = getCurrentStore();
       store.name = name;
+      if (!isNaN(latVal)) store.lat = latVal;
+      if (!isNaN(lonVal)) store.lon = lonVal;
       showToast(`店名已更新為「${name}」`);
     }
     saveState();
     document.getElementById("storeModal").classList.add("hidden");
     renderApp();
   });
+
+  // 商店視窗：綁定當前 GPS 位置按鈕
+  document
+    .getElementById("btnPinCurrentLocationToStore")
+    ?.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        showToast("此裝置或瀏覽器不支援 GPS 定位");
+        return;
+      }
+      const gpsText = document.getElementById("storeGpsInfoText");
+      if (gpsText) gpsText.textContent = "正在抓取目前 GPS 座標...";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const latInput = document.getElementById("inputStoreLat");
+          const lonInput = document.getElementById("inputStoreLon");
+          if (latInput) latInput.value = lat;
+          if (lonInput) lonInput.value = lon;
+          if (gpsText) {
+            gpsText.textContent = `📍 已抓取：${lat.toFixed(4)}, ${lon.toFixed(4)} (按下方儲存確認)`;
+          }
+          showToast("已抓取目前位置！請按儲存確認");
+        },
+        (err) => {
+          if (gpsText) gpsText.textContent = "無法取得位置：" + err.message;
+          showToast("無法取得 GPS 位置，請確認已授權權限");
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
 
   document
     .getElementById("btnClearStoreInModal")
@@ -2167,6 +3231,7 @@ function bindEvents() {
     const cardId = document.getElementById("editCardId").value;
     const itemId = document.getElementById("editItemId").value;
     const name = document.getElementById("inputItemName").value.trim();
+    const compareKey = (document.getElementById("inputItemCompareKey")?.value || "").trim();
     const note = document.getElementById("inputItemNote").value.trim();
     const untaxed = Math.round(
       Number(document.getElementById("inputItemUntaxed").value) || 0
@@ -2189,6 +3254,7 @@ function bindEvents() {
       const item = card.items.find((i) => i.id === itemId);
       if (item) {
         item.name = name;
+        item.compareKey = compareKey;
         item.note = note;
         item.untaxedPrice = untaxed;
         item.taxedPrice = taxed;
@@ -2198,6 +3264,7 @@ function bindEvents() {
       card.items.push({
         id: "item_" + Date.now(),
         name,
+        compareKey,
         note,
         untaxedPrice: untaxed,
         taxedPrice: taxed,
@@ -2262,6 +3329,32 @@ function bindEvents() {
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       showToast("已複製採買明細！");
     });
+  });
+
+  // 附近店家定位與推薦視窗
+  document.getElementById("btnNearbyStores")?.addEventListener("click", () => detectNearbyStores(false));
+  document.getElementById("btnNearbyStoresQuick")?.addEventListener("click", () => detectNearbyStores(false));
+  document.getElementById("btnRefreshLocation")?.addEventListener("click", () => detectNearbyStores(true));
+  document.getElementById("btnSetOsakaPreset")?.addEventListener("click", () => {
+    lastUserLocation = { ...OSAKA_PRESET_LOCATION };
+    detectNearbyStores(false);
+    showToast("已設定位置為：大阪心齋橋筋與道頓堀交會處");
+  });
+  document.getElementById("btnCloseNearbyModal")?.addEventListener("click", () => {
+    document.getElementById("nearbyStoresModal")?.classList.add("hidden");
+  });
+
+  // 跨店最低價比價清單
+  document.getElementById("btnFindLowestPrices")?.addEventListener("click", openLowestPriceFinderModal);
+  document.getElementById("btnCloseLowestPriceModal")?.addEventListener("click", () => {
+    document.getElementById("lowestPriceModal")?.classList.add("hidden");
+  });
+  document.getElementById("lowestPriceSearchInput")?.addEventListener("input", renderLowestPriceModal);
+  document.getElementById("chkOnlyMultiStore")?.addEventListener("change", renderLowestPriceModal);
+
+  // 單一商品跨店比價視窗關閉
+  document.getElementById("btnCloseItemCompareModal")?.addEventListener("click", () => {
+    document.getElementById("itemCompareModal")?.classList.add("hidden");
   });
 
   // Lightbox 關閉

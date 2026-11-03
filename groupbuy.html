@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#FAF6F0" />
+    <title>旅途採買手帳｜日本藥妝團購喊單與許願本</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css?v=20261103_v1" />
+    <link rel="stylesheet" href="./groupbuy.css?v=20261103_v1" />
+  </head>
+  <body>
+    <div class="notebook-container groupbuy-app">
+      <!-- 頂部手帳風導航列 -->
+      <header class="app-header groupbuy-header">
+        <div class="brand-title">
+          <svg class="brand-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 14C6 11.7909 7.79086 10 10 10H26C28.2091 10 30 11.7909 30 14V26C30 28.2091 28.2091 30 26 30H10C7.79086 30 6 28.2091 6 26V14Z" fill="#FDF3E7" stroke="#4A3F35" stroke-width="2"/>
+            <path d="M12 10V7C12 5.34315 13.3431 4 15 4H21C22.6569 4 24 5.34315 24 7V10" stroke="#4A3F35" stroke-width="2"/>
+            <circle cx="13" cy="18" r="3" fill="#D96B43"/>
+            <circle cx="23" cy="18" r="3" fill="#5B8C69"/>
+            <path d="M10 26C10 23.5 12 22 13 22C14 22 16 23.5 16 26" stroke="#4A3F35" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M20 26C20 23.5 22 22 23 22C24 22 26 23.5 26 26" stroke="#4A3F35" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <h1>連線喊單與許願本</h1>
+            <p class="subtitle">現場連線 +1・許願池自動入袋・回國分帳統計</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- 回到採買手帳主站按鈕 -->
+          <a href="./index.html" class="nav-back-link" title="返回採買手帳比價">
+            <span class="nav-pill">📓 採買手帳</span>
+          </a>
+
+          <!-- 當前個人帳號身分卡 -->
+          <button id="btnSwitchUser" class="current-user-card" title="切換或建立帳號">
+            <span id="currentUserAvatar" class="user-avatar-badge">👑</span>
+            <div class="user-meta">
+              <span id="currentUserName" class="user-name">品方</span>
+              <span id="currentUserRole" class="user-role-tag leader">團主</span>
+            </div>
+            <span class="switch-icon">⇄</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 主要功能分頁導覽 -->
+      <nav class="groupbuy-nav-tabs">
+        <button type="button" class="tab-item active" data-tab="liveStream">
+          <span class="tab-icon">📢</span>
+          <span class="tab-title">現場即時喊單</span>
+          <span class="tab-badge" id="badgeLiveCount">0</span>
+        </button>
+        <button type="button" class="tab-item" data-tab="wishlist">
+          <span class="tab-icon">🌟</span>
+          <span class="tab-title">個人許願商品區</span>
+          <span class="tab-badge" id="badgeWishCount">0</span>
+        </button>
+        <button type="button" class="tab-item" data-tab="settlement">
+          <span class="tab-icon">💰</span>
+          <span class="tab-title">回國分帳統計</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: 現場即時喊單看板 -->
+      <main id="tabLiveStream" class="tab-content active">
+        <!-- 發文頂部操作列 -->
+        <section class="live-action-bar">
+          <div class="live-prompt-note">
+            📸 <strong>團主現場連線區</strong>：拍下貨架標價，團友即可在下方按「+1」喊單！確認購入後自動收錄進許願專區。
+          </div>
+          <button type="button" id="btnNewLivePost" class="btn-primary-action">
+            <span>📷 團主拍照發起喊單</span>
+          </button>
+        </section>
+
+        <!-- 現場連線貼文瀑布流 -->
+        <section id="livePostsContainer" class="live-posts-grid">
+          <!-- 動態渲染 -->
+        </section>
+      </main>
+
+      <!-- TAB 2: 個人許願商品專區 -->
+      <main id="tabWishlist" class="tab-content hidden">
+        <section class="wishlist-toolbar">
+          <div class="wishlist-filter-group">
+            <label for="wishlistUserFilter" class="filter-label">檢視對象：</label>
+            <select id="wishlistUserFilter" class="notebook-select">
+              <option value="all">👥 全體成員的許願池</option>
+              <!-- 動態載入使用者 -->
+            </select>
+          </div>
+
+          <div class="wishlist-status-tabs">
+            <button type="button" class="status-chip active" data-status="all">全部</button>
+            <button type="button" class="status-chip" data-status="pending">📌 許願中</button>
+            <button type="button" class="status-chip bought" data-status="bought">✅ 已購入</button>
+          </div>
+
+          <button type="button" id="btnOpenNewWishModal" class="btn-secondary-action">
+            <span>➕ 我要許願商品</span>
+          </button>
+        </section>
+
+        <!-- 許願卡片列表 -->
+        <section id="wishlistContainer" class="wishlist-grid">
+          <!-- 動態渲染 -->
+        </section>
+      </main>
+
+      <!-- TAB 3: 回國金額分帳與統計 -->
+      <main id="tabSettlement" class="tab-content hidden">
+        <!-- 統計看板 -->
+        <section class="summary-hero-card">
+          <div class="hero-header">
+            <h3>🧮 回國分帳結算總表</h3>
+            <div class="rate-config-box">
+              <label for="settlementRateInput">計算匯率：</label>
+              <input type="number" id="settlementRateInput" step="0.001" value="0.215" class="rate-input" />
+              <button type="button" id="btnSaveRate" class="mini-btn">更新</button>
+            </div>
+          </div>
+
+          <div class="stat-tiles-row">
+            <div class="stat-tile">
+              <span class="stat-label">總採購品項</span>
+              <strong id="statTotalItems" class="stat-num">0 件</strong>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-label">總採購日圓</span>
+              <strong id="statTotalYen" class="stat-num yen">¥0</strong>
+            </div>
+            <div class="stat-tile highlight">
+              <span class="stat-label">折合應收台幣</span>
+              <strong id="statTotalTwd" class="stat-num twd">NT$ 0</strong>
+            </div>
+            <div class="stat-tile">
+              <span class="stat-label">已收齊金額</span>
+              <strong id="statPaidTwd" class="stat-num paid">NT$ 0</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- 各成員個別結算單 -->
+        <section class="member-bills-section">
+          <div class="section-title-row">
+            <h4>📋 成員分帳帳單明細</h4>
+            <button type="button" id="btnExportAllCsv" class="mini-btn">📥 匯出完整 CSV</button>
+          </div>
+          <div id="memberBillsContainer" class="member-bills-list">
+            <!-- 動態渲染各成員帳單 -->
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL 1: 團主發起現場喊單連線 -->
+    <div id="modalNewLivePost" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>📷 團主發起現場喊單連線</h3>
+          <button type="button" class="close-btn" data-close-modal="modalNewLivePost">✕</button>
+        </div>
+        <form id="formNewLivePost" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">商品相片 <span class="required">*</span></label>
+            <div class="photo-upload-box">
+              <input type="file" id="postImageInput" accept="image/*" class="file-input-hidden" />
+              <div id="postImagePreviewContainer" class="image-preview-wrapper hidden">
+                <img id="postImagePreview" src="" alt="預覽" />
+                <button type="button" id="btnRemovePostImage" class="remove-photo-btn">✕ 重新選擇</button>
+              </div>
+              <button type="button" id="btnSelectPostImage" class="btn-upload-trigger">
+                <span>📸 拍攝貨架或從相簿上傳</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="postTitleInput" class="form-label">商品名稱 <span class="required">*</span></label>
+            <input type="text" id="postTitleInput" class="form-input" placeholder="例：DHC 速攻藍莓 20日分" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="postPriceYenInput" class="form-label">現場標價 (日圓含稅) <span class="required">*</span></label>
+              <div class="input-with-affix">
+                <span class="affix">¥</span>
+                <input type="number" id="postPriceYenInput" class="form-input" placeholder="980" min="1" required />
+              </div>
+            </div>
+            <div class="form-group half">
+              <label for="postStockLimitInput" class="form-label">現貨限量 (件)</label>
+              <input type="number" id="postStockLimitInput" class="form-input" placeholder="不限請留空" min="1" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="postStoreInput" class="form-label">所在店家 / 地點</label>
+            <input type="text" id="postStoreInput" class="form-input" placeholder="例：ダイコクドラッグ 道頓堀店" />
+          </div>
+
+          <div class="form-group">
+            <label for="postNoteInput" class="form-label">備註說明 / 款式規格</label>
+            <textarea id="postNoteInput" class="form-textarea" rows="2" placeholder="例：架上還有現貨 5 包，清涼款只有 2 瓶"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" data-close-modal="modalNewLivePost">取消</button>
+            <button type="submit" class="btn-submit">🚀 發布現場喊單</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 2: 成員新增許願商品 -->
+    <div id="modalNewWish" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>🌟 新增個人許願商品</h3>
+          <button type="button" class="close-btn" data-close-modal="modalNewWish">✕</button>
+        </div>
+        <form id="formNewWish" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">許願人身分</label>
+            <div id="wishAuthorDisplay" class="static-pill-display">👑 品方</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">商品相片 (包裝/照片)</label>
+            <div class="photo-upload-box">
+              <input type="file" id="wishImageInput" accept="image/*" class="file-input-hidden" />
+              <div id="wishImagePreviewContainer" class="image-preview-wrapper hidden">
+                <img id="wishImagePreview" src="" alt="預覽" />
+                <button type="button" id="btnRemoveWishImage" class="remove-photo-btn">✕ 重新選擇</button>
+              </div>
+              <button type="button" id="btnSelectWishImage" class="btn-upload-trigger">
+                <span>📷 上傳想買的商品包裝截圖</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="wishTitleInput" class="form-label">商品名稱 <span class="required">*</span></label>
+            <input type="text" id="wishTitleInput" class="form-input" placeholder="例：EVE 白兔止痛藥 QUICK DX 40錠" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="wishQtyInput" class="form-label">想買數量 <span class="required">*</span></label>
+              <input type="number" id="wishQtyInput" class="form-input" value="1" min="1" max="99" required />
+            </div>
+            <div class="form-group half">
+              <label for="wishTargetPriceInput" class="form-label">參考預算/建議售價 (日圓)</label>
+              <div class="input-with-affix">
+                <span class="affix">¥</span>
+                <input type="number" id="wishTargetPriceInput" class="form-input" placeholder="例：1780" min="0" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="wishNoteInput" class="form-label">規格備註 (容量/顏色/口味/可接受替代品)</label>
+            <textarea id="wishNoteInput" class="form-textarea" rows="2" placeholder="例：如果 40 錠缺貨，買 20 錠也可以"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" data-close-modal="modalNewWish">取消</button>
+            <button type="submit" class="btn-submit">✨ 加入許願池</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3: 切換或建立帳號 -->
+    <div id="modalAccount" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>👥 切換或建立個人帳號</h3>
+          <button type="button" class="close-btn" data-close-modal="modalAccount">✕</button>
+        </div>
+        <div class="account-modal-content">
+          <p class="account-tip">點擊切換操作身分；不同成員可以喊單或許願，團主能確認購入！</p>
+          <div id="accountsListContainer" class="accounts-list">
+            <!-- 動態渲染帳號 -->
+          </div>
+
+          <hr class="divider" />
+
+          <!-- 新增個人帳號表單 -->
+          <form id="formNewUser" class="new-user-form">
+            <h4>➕ 建立新朋友帳號</h4>
+            <div class="form-row">
+              <div class="form-group" style="width:70px;">
+                <label class="form-label">頭像</label>
+                <select id="newUserAvatar" class="notebook-select">
+                  <option value="🌸">🌸</option>
+                  <option value="🍙">🍙</option>
+                  <option value="🐱">🐱</option>
+                  <option value="🐶">🐶</option>
+                  <option value="🐰">🐰</option>
+                  <option value="🐻">🐻</option>
+                  <option value="🐼">🐼</option>
+                  <option value="🦊">🦊</option>
+                  <option value="🍓">🍓</option>
+                  <option value="👑">👑</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label for="newUserNameInput" class="form-label">姓名 / LINE暱稱 <span class="required">*</span></label>
+                <input type="text" id="newUserNameInput" class="form-input" placeholder="例：小雅" required />
+              </div>
+              <div class="form-group" style="width:110px;">
+                <label class="form-label">身分</label>
+                <select id="newUserRole" class="notebook-select">
+                  <option value="member">團友</option>
+                  <option value="leader">團主(代購)</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn-secondary-action full-width">➕ 建立並切換為此帳號</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: 團主確認購入彈窗 -->
+    <div id="modalConfirmPurchase" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>🛒 確認購入・商品移至個人許願專區</h3>
+          <button type="button" class="close-btn" data-close-modal="modalConfirmPurchase">✕</button>
+        </div>
+        <div class="confirm-purchase-body">
+          <div id="confirmPurchaseProductSummary" class="purchase-product-summary"></div>
+          <p class="confirm-tip">請勾選本次在店裡實際買到的成員喊單。勾選後，商品會<strong>自動移入該成員的個人許願池「已購入」清單</strong>中，並計入分帳！</p>
+          <div id="confirmOrdersListContainer" class="confirm-orders-list"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" data-close-modal="modalConfirmPurchase">取消</button>
+            <button type="button" id="btnExecutePurchase" class="btn-submit">✅ 確認入袋並移至已購入</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖片放大預覽 Lightbox -->
+    <div id="groupbuyLightbox" class="modal-backdrop hidden">
+      <div class="lightbox-content">
+        <button id="btnCloseLightbox" class="lightbox-close">✕ 關閉原圖</button>
+        <img id="lightboxImg" src="" alt="放大圖" />
+      </div>
+    </div>
+
+    <!-- 輕量 Toast 提示 -->
+    <div id="toastBanner" class="toast-banner hidden"></div>
+
+    <script src="./groupbuy.js?v=20261103_v1"></script>
+  </body>
+</html>

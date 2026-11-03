@@ -598,6 +598,80 @@ body {
   flex-shrink: 0;
 }
 
+.check-lowest-btn {
+  background: #fdf3d8;
+  border: 1.5px solid var(--accent-mustard);
+  color: #7d5910;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s ease;
+}
+
+.check-lowest-btn:hover {
+  background: #fae4ad;
+  transform: translateY(-1px);
+}
+
+.check-lowest-btn:active {
+  transform: translateY(0);
+}
+
+.item-lowest-result {
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.item-lowest-result.lowest-success {
+  background: #eef8f1;
+  border: 1.5px solid #8ecda2;
+  color: #17522d;
+}
+
+.item-lowest-result.lowest-warning {
+  background: #fdf1ec;
+  border: 1.5px solid #f3b5a1;
+  color: #9c3313;
+}
+
+.item-lowest-result.lowest-info {
+  background: #f4f0ea;
+  border: 1.5px solid var(--border-warm);
+  color: var(--ink-muted);
+}
+
+.item-lowest-result .result-title {
+  font-weight: 700;
+  font-size: 0.84rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+
+.item-lowest-result .price-highlight {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c03914;
+}
+
+.item-lowest-result .result-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .edit-item-btn,
 .delete-item-btn {
   background: var(--bg-sub);
@@ -1222,3 +1296,560 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   object-fit: contain;
 }
+
+/* 附近店家與比價特色按鈕 */
+.add-store-btn.nearby-btn {
+  border-style: solid;
+  border-color: var(--accent-sage);
+  color: var(--accent-sage);
+  background: var(--accent-sage-light);
+}
+
+.add-store-btn.nearby-btn:hover {
+  background: #d5e7dd;
+}
+
+.secondary-pill-btn.highlight-pill {
+  background: #fdf3d8;
+  border-color: var(--accent-mustard);
+  color: #7d5910;
+  font-weight: 700;
+}
+
+.secondary-pill-btn.highlight-pill:hover {
+  background: #fbeac0;
+}
+
+/* 跨店比價徽章強化（最低價醒目標示） */
+.compare-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  user-select: none;
+  transition: transform 0.1s, opacity 0.15s;
+}
+
+.compare-badge:hover {
+  opacity: 0.88;
+  transform: scale(1.03);
+}
+
+.compare-badge.lowest {
+  background: linear-gradient(135deg, #e4f7ea, #d2f0dc);
+  color: #1a5631;
+  border: 1px solid #99d8ac;
+  box-shadow: 0 1px 3px rgba(33, 99, 56, 0.15);
+}
+
+.compare-badge.cheaper {
+  background: #dff2e4;
+  color: #2f6f46;
+  border: 1px solid #bce1c7;
+}
+
+.compare-badge.pricier {
+  background: #fbe5df;
+  color: #b84a27;
+  border: 1px solid #f2c0b4;
+}
+
+.compare-badge.same {
+  background: #f0ede8;
+  color: var(--ink-muted);
+  border: 1px solid var(--border-warm);
+}
+
+/* 商店管理中 GPS 資訊列 */
+.store-gps-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-sub);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-warm);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.store-gps-card .gps-meta {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.store-gps-card .gps-val {
+  font-weight: 700;
+  color: var(--ink-main);
+  word-break: break-all;
+}
+
+/* 附近店家視窗樣式 */
+.nearby-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.location-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-warm);
+}
+
+.location-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.location-icon {
+  font-size: 1.5rem;
+}
+
+.location-texts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.location-texts strong {
+  font-size: 0.88rem;
+  color: var(--ink-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.location-texts small {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+}
+
+.nearby-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nearby-section-header h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-main);
+}
+
+.nearby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nearby-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-warm);
+  gap: 10px;
+}
+
+.nearby-item.current-store {
+  border-color: var(--accent-sage);
+  background: #f4faf6;
+}
+
+.nearby-item-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.nearby-item-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nearby-item-addr {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.nearby-item-dist {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-persimmon);
+  background: var(--accent-persimmon-light);
+  padding: 1px 6px;
+  border-radius: 99px;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+.nearby-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.active-store-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--accent-sage);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+/* 跨店最低價清單視窗樣式 */
+.modal-sheet.large-sheet {
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lowest-price-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: calc(88vh - 80px);
+  padding-bottom: 20px;
+}
+
+.search-and-filter-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-warm);
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-main);
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: var(--accent-sage);
+}
+
+.filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lowest-price-stats-banner {
+  background: #fdf6e7;
+  border: 1px solid #f4e1b3;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: #724e07;
+  line-height: 1.4;
+}
+
+.lowest-price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lowest-product-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.2s;
+}
+
+.lowest-product-card:hover {
+  box-shadow: 0 3px 10px rgba(61, 53, 46, 0.08);
+}
+
+.lowest-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lowest-card-head .product-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink-main);
+}
+
+.lowest-card-head .product-note {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.lowest-spotlight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #fef1cf, #fde4a4);
+  color: #7d5203;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid #ebd07d;
+  white-space: nowrap;
+}
+
+.lowest-store-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-sub);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.lowest-store-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.lowest-store-row.is-lowest {
+  background: #e5f5ea;
+  border: 1px solid #a8dcba;
+  font-weight: 700;
+}
+
+.lowest-store-name {
+  color: var(--ink-main);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lowest-store-prices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lowest-store-prices .price-yen {
+  font-weight: 700;
+  color: var(--ink-main);
+}
+
+.lowest-store-prices .price-diff {
+  font-size: 0.72rem;
+  color: var(--accent-persimmon);
+  font-weight: 600;
+}
+
+/* 單一商品跨店比價視窗 */
+.item-compare-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-compare-header {
+  background: var(--bg-sub);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-warm);
+}
+
+.item-compare-header h4 {
+  font-size: 0.95rem;
+  color: var(--ink-main);
+  margin-bottom: 2px;
+}
+
+.item-compare-header p {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.item-compare-stores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compare-store-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  gap: 10px;
+}
+
+.compare-store-card.is-lowest {
+  border-color: var(--accent-sage);
+  background: #f4faf6;
+}
+
+.compare-store-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-store-info .store-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-main);
+}
+
+.compare-store-info .price-sub {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.compare-store-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* 日本知名藥妝網站比價區塊 */
+.online-compare-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #fbf9f4;
+  border: 1px dashed #d5c8b2;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.online-compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.online-compare-header strong {
+  font-size: 0.82rem;
+  color: var(--ink-main);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.jp-sites-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jp-site-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 99px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid var(--border-warm);
+  background: #fff;
+  color: var(--ink-main);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.jp-site-chip:hover {
+  background: var(--bg-sub);
+  border-color: var(--accent-sage);
+  color: var(--accent-sage);
+  transform: translateY(-1px);
+}
+
+.jp-site-chip .site-badge {
+  font-size: 0.65rem;
+  background: #f0ede5;
+  color: var(--ink-muted);
+  padding: 1px 5px;
+  border-radius: 99px;
+}
+
+.online-ai-benchmark {
+  background: #fff;
+  border: 1px solid #e2dac9;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-main);
+}
+
+.online-ai-benchmark.cheaper {
+  border-color: #92d4a6;
+  background: #f4faf6;
+}
+
+.online-ai-benchmark.pricier {
+  border-color: #f7bda9;
+  background: #fdf5f2;
+}
+
+.online-bench-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+}
+
+.online-bench-row strong {
+  font-size: 0.85rem;
+}
+
+
