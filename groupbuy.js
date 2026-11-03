@@ -93,6 +93,8 @@ const DEFAULT_STATE = {
     roomId: "osaka_groupbuy_notebook",
     firebaseDbUrl: "",
   },
+  deletedPostIds: [],
+  deletedWishIds: [],
 };
 
 let state = loadGroupbuyState();
@@ -121,7 +123,16 @@ function loadGroupbuyState() {
         wishes: parsed.wishes || DEFAULT_STATE.wishes,
         payments: parsed.payments || DEFAULT_STATE.payments,
         sync: { ...DEFAULT_STATE.sync, ...(parsed.sync || {}) },
+        deletedPostIds: parsed.deletedPostIds || [],
+        deletedWishIds: parsed.deletedWishIds || [],
       };
+      // 確保已刪除項目不會因快照殘留而復活
+      if (Array.isArray(loaded.deletedPostIds) && loaded.deletedPostIds.length > 0) {
+        loaded.posts = loaded.posts.filter((p) => !loaded.deletedPostIds.includes(p.id));
+      }
+      if (Array.isArray(loaded.deletedWishIds) && loaded.deletedWishIds.length > 0) {
+        loaded.wishes = loaded.wishes.filter((w) => !loaded.deletedWishIds.includes(w.id));
+      }
     }
 
     // 檢查網址是否有自訂房號或 Firebase (例如 ?room=osaka2026&db=...)
@@ -496,8 +507,12 @@ function handleDeleteLivePost(postId) {
     if (!confirmed) return;
   }
 
-  // 執行刪除貼文
+  // 執行刪除貼文並記錄墓碑標記，防止雲端同步或重整時復活
   state.posts = state.posts.filter((p) => p.id !== postId);
+  if (!state.deletedPostIds) state.deletedPostIds = [];
+  if (!state.deletedPostIds.includes(postId)) {
+    state.deletedPostIds.push(postId);
+  }
 
   // 跨手機即時廣播刪除事件
   broadcastSyncEvent("DELETE_POST", {
@@ -778,6 +793,17 @@ function renderWishlist() {
       delBtn.addEventListener("click", () => {
         if (confirm(`確定要刪除「${wish.title}」這項許願嗎？`)) {
           state.wishes = state.wishes.filter((w) => w.id !== wish.id);
+          if (!state.deletedWishIds) state.deletedWishIds = [];
+          if (!state.deletedWishIds.includes(wish.id)) {
+            state.deletedWishIds.push(wish.id);
+          }
+
+          // 跨手機即時廣播刪除許願事件
+          broadcastSyncEvent("DELETE_WISH", {
+            wishId: wish.id,
+            wishTitle: wish.title,
+          });
+
           saveGroupbuyState();
           renderApp();
           showToast("已刪除許願商品");
@@ -1716,26 +1742,67 @@ function handleIncomingSyncEvent(evt) {
       break;
     }
 
+    case "DELETE_POST": {
+      const { postId } = evt.data || {};
+      if (postId) {
+        state.posts = state.posts.filter((p) => p.id !== postId);
+        if (!state.deletedPostIds) state.deletedPostIds = [];
+        if (!state.deletedPostIds.includes(postId)) state.deletedPostIds.push(postId);
+        saveGroupbuyState();
+        renderApp();
+      }
+      break;
+    }
+
+    case "DELETE_WISH": {
+      const { wishId } = evt.data || {};
+      if (wishId) {
+        state.wishes = state.wishes.filter((w) => w.id !== wishId);
+        if (!state.deletedWishIds) state.deletedWishIds = [];
+        if (!state.deletedWishIds.includes(wishId)) state.deletedWishIds.push(wishId);
+        saveGroupbuyState();
+        renderApp();
+      }
+      break;
+    }
+
     case "REQUEST_FULL_SYNC": {
-      // 團主或在線成員回傳當前完整狀態給新進入房間的人
-      if (getCurrentUser().role === "leader" || state.wishes.length > 2) {
+      // 團主或在線成員回傳當前完整狀態給新進入房間的人（包含已刪除墓碑標記）
+      if (getCurrentUser().role === "leader" || state.wishes.length > 0 || state.posts.length > 0) {
         broadcastSyncEvent("REPLY_FULL_SYNC", {
           wishes: state.wishes,
           posts: state.posts,
           users: state.users,
           payments: state.payments,
+          deletedPostIds: state.deletedPostIds || [],
+          deletedWishIds: state.deletedWishIds || [],
         });
       }
       break;
     }
 
     case "REPLY_FULL_SYNC": {
-      const { wishes, posts, users, payments } = evt.data || {};
-      if (Array.isArray(wishes) && wishes.length >= state.wishes.length) {
-        state.wishes = mergeListsById(state.wishes, wishes);
+      const { wishes, posts, users, payments, deletedPostIds, deletedWishIds } = evt.data || {};
+      
+      // 合併已刪除 ID 集合
+      const allDeletedPosts = new Set([
+        ...(state.deletedPostIds || []),
+        ...((Array.isArray(deletedPostIds) && deletedPostIds) || []),
+      ]);
+      const allDeletedWishes = new Set([
+        ...(state.deletedWishIds || []),
+        ...((Array.isArray(deletedWishIds) && deletedWishIds) || []),
+      ]);
+      state.deletedPostIds = Array.from(allDeletedPosts);
+      state.deletedWishIds = Array.from(allDeletedWishes);
+
+      if (Array.isArray(wishes)) {
+        state.wishes = mergeListsById(state.wishes, wishes)
+          .filter((w) => !allDeletedWishes.has(w.id));
       }
-      if (Array.isArray(posts) && posts.length >= state.posts.length) {
-        state.posts = mergeListsById(state.posts, posts);
+      if (Array.isArray(posts)) {
+        state.posts = mergeListsById(state.posts, posts)
+          .filter((p) => !allDeletedPosts.has(p.id));
       }
       if (Array.isArray(users)) {
         state.users = mergeListsById(state.users, users);
@@ -1745,7 +1812,7 @@ function handleIncomingSyncEvent(evt) {
       }
       saveGroupbuyState();
       renderApp();
-      console.log("[Realtime Sync] 已成功自雲端同步最新全量資料");
+      console.log("[Realtime Sync] 已成功自雲端同步最新全量資料 (已排除已刪除項目)");
       break;
     }
   }
