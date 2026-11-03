@@ -95,6 +95,7 @@ const DEFAULT_STATE = {
   },
   deletedPostIds: [],
   deletedWishIds: [],
+  deletedUserIds: [],
 };
 
 let state = loadGroupbuyState();
@@ -125,6 +126,7 @@ function loadGroupbuyState() {
         sync: { ...DEFAULT_STATE.sync, ...(parsed.sync || {}) },
         deletedPostIds: parsed.deletedPostIds || [],
         deletedWishIds: parsed.deletedWishIds || [],
+        deletedUserIds: parsed.deletedUserIds || [],
       };
       // 確保已刪除項目不會因快照殘留而復活
       if (Array.isArray(loaded.deletedPostIds) && loaded.deletedPostIds.length > 0) {
@@ -132,6 +134,9 @@ function loadGroupbuyState() {
       }
       if (Array.isArray(loaded.deletedWishIds) && loaded.deletedWishIds.length > 0) {
         loaded.wishes = loaded.wishes.filter((w) => !loaded.deletedWishIds.includes(w.id));
+      }
+      if (Array.isArray(loaded.deletedUserIds) && loaded.deletedUserIds.length > 0) {
+        loaded.users = loaded.users.filter((u) => !loaded.deletedUserIds.includes(u.id));
       }
     }
 
@@ -1334,11 +1339,11 @@ function bindGlobalEvents() {
     btnNewLivePost.addEventListener("click", () => {
       const currentUser = getCurrentUser();
       if (currentUser.role !== "leader") {
-        const confirmSwitch = confirm("發起現場連線通常由【團主】發布。是否將當前帳號切換或建立為團主？");
+        const confirmSwitch = confirm("發起現場連線通常由【團主】發布。是否將當前帳號更改為出國團主？");
         if (confirmSwitch) {
-          currentUser.role = "leader";
-          saveGroupbuyState();
-          renderHeaderUser();
+          setUserAsLeader(currentUser.id);
+        } else {
+          return;
         }
       }
       tempPostImageData = "";
@@ -1675,8 +1680,8 @@ function handleIncomingSyncEvent(evt) {
       if (!exists) {
         state.wishes.unshift(wish);
 
-        // 自動加入該成員到清單
-        if (!state.users.some((u) => u.id === wish.userId)) {
+        // 自動加入該成員到清單 (若未被刪除)
+        if (!state.users.some((u) => u.id === wish.userId) && !(state.deletedUserIds || []).includes(wish.userId)) {
           state.users.push({
             id: wish.userId,
             name: wish.userName,
@@ -1766,6 +1771,56 @@ function handleIncomingSyncEvent(evt) {
       break;
     }
 
+    case "DELETE_USER": {
+      const { userId } = evt.data || {};
+      if (userId) {
+        state.users = state.users.filter((u) => u.id !== userId);
+        if (!state.deletedUserIds) state.deletedUserIds = [];
+        if (!state.deletedUserIds.includes(userId)) state.deletedUserIds.push(userId);
+        state.wishes = state.wishes.filter((w) => w.userId !== userId);
+        state.posts.forEach((p) => {
+          if (Array.isArray(p.orders)) {
+            p.orders = p.orders.filter((o) => o.userId !== userId);
+          }
+        });
+        if (state.payments && state.payments[userId]) {
+          delete state.payments[userId];
+        }
+        if (state.currentUserId === userId) {
+          const leader = state.users.find((u) => u.role === "leader") || state.users[0];
+          state.currentUserId = leader ? leader.id : "";
+        }
+        saveGroupbuyState();
+        renderApp();
+        const accountModal = document.getElementById("modalAccount");
+        if (accountModal && !accountModal.classList.contains("hidden")) {
+          openAccountModal();
+        }
+      }
+      break;
+    }
+
+    case "UPDATE_USER_ROLE": {
+      const { userId, userName, role } = evt.data || {};
+      if (userId) {
+        state.users.forEach((u) => {
+          if (u.id === userId) {
+            u.role = role || "leader";
+          } else if (role === "leader" && u.role === "leader") {
+            u.role = "member";
+          }
+        });
+        saveGroupbuyState();
+        renderApp();
+        const accountModal = document.getElementById("modalAccount");
+        if (accountModal && !accountModal.classList.contains("hidden")) {
+          openAccountModal();
+        }
+        showToast(`✈️ 出國團主已變更為【${userName || "成員"}】！`);
+      }
+      break;
+    }
+
     case "REQUEST_FULL_SYNC": {
       // 團主或在線成員回傳當前完整狀態給新進入房間的人（包含已刪除墓碑標記）
       if (getCurrentUser().role === "leader" || state.wishes.length > 0 || state.posts.length > 0) {
@@ -1776,13 +1831,14 @@ function handleIncomingSyncEvent(evt) {
           payments: state.payments,
           deletedPostIds: state.deletedPostIds || [],
           deletedWishIds: state.deletedWishIds || [],
+          deletedUserIds: state.deletedUserIds || [],
         });
       }
       break;
     }
 
     case "REPLY_FULL_SYNC": {
-      const { wishes, posts, users, payments, deletedPostIds, deletedWishIds } = evt.data || {};
+      const { wishes, posts, users, payments, deletedPostIds, deletedWishIds, deletedUserIds } = evt.data || {};
       
       // 合併已刪除 ID 集合
       const allDeletedPosts = new Set([
@@ -1793,8 +1849,13 @@ function handleIncomingSyncEvent(evt) {
         ...(state.deletedWishIds || []),
         ...((Array.isArray(deletedWishIds) && deletedWishIds) || []),
       ]);
+      const allDeletedUsers = new Set([
+        ...(state.deletedUserIds || []),
+        ...((Array.isArray(deletedUserIds) && deletedUserIds) || []),
+      ]);
       state.deletedPostIds = Array.from(allDeletedPosts);
       state.deletedWishIds = Array.from(allDeletedWishes);
+      state.deletedUserIds = Array.from(allDeletedUsers);
 
       if (Array.isArray(wishes)) {
         state.wishes = mergeListsById(state.wishes, wishes)
@@ -1805,7 +1866,8 @@ function handleIncomingSyncEvent(evt) {
           .filter((p) => !allDeletedPosts.has(p.id));
       }
       if (Array.isArray(users)) {
-        state.users = mergeListsById(state.users, users);
+        state.users = mergeListsById(state.users, users)
+          .filter((u) => !allDeletedUsers.has(u.id));
       }
       if (payments) {
         state.payments = { ...state.payments, ...payments };
@@ -1870,8 +1932,33 @@ function openAccountModal() {
   const listEl = document.getElementById("accountsListContainer");
   listEl.innerHTML = "";
 
+  const currentUser = getCurrentUser();
+  const isLeader = currentUser.role === "leader";
+
+  // 若當前使用者不是團主，頂部顯示一鍵升為出國團主的便捷入口
+  if (!isLeader) {
+    const bannerEl = document.createElement("div");
+    bannerEl.className = "promote-self-banner";
+    bannerEl.style.cssText =
+      "background:#fff7eb; border:1.5px solid #f2cf99; border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px;";
+    bannerEl.innerHTML = `
+      <div>
+        <div style="font-weight:700; color:#b45309; font-size:0.9rem;">✈️ 這次換我出國採買！</div>
+        <div style="font-size:0.78rem; color:#78350f;">點擊將自己（${escapeHtml(currentUser.name)}）更改為團主，可發起連線與確認購入！</div>
+      </div>
+      <button type="button" class="mini-btn btn-promote-self" style="background:#f59e0b; color:white; border:none; padding:6px 12px; font-weight:700; white-space:nowrap; cursor:pointer; border-radius:20px;">👑 改為團主</button>
+    `;
+    bannerEl.querySelector(".btn-promote-self").addEventListener("click", () => {
+      if (confirm(`確定要將自己「${currentUser.name}」更改為本次出國採購的【團主】嗎？\n\n（原團主將轉為團友，換你主理現場連線與採買確認）`)) {
+        setUserAsLeader(currentUser.id);
+      }
+    });
+    listEl.appendChild(bannerEl);
+  }
+
   state.users.forEach((u) => {
     const isCurrent = u.id === state.currentUserId;
+    const canDelete = isLeader && u.role !== "leader";
     const cardEl = document.createElement("div");
     cardEl.className = `account-row-card ${isCurrent ? "active" : ""}`;
     cardEl.innerHTML = `
@@ -1879,15 +1966,46 @@ function openAccountModal() {
         <span style="font-size:1.4rem;">${escapeHtml(u.avatar || "👤")}</span>
         <div>
           <strong style="color:var(--ink-main);">${escapeHtml(u.name)}</strong>
-          <span class="user-role-tag ${u.role === "leader" ? "leader" : "member"}">${u.role === "leader" ? "團主(代購)" : "團友"}</span>
+          <span class="user-role-tag ${u.role === "leader" ? "leader" : "member"}">${u.role === "leader" ? "👑 團主(代購)" : "團友"}</span>
         </div>
       </div>
-      <div>
-        ${isCurrent ? `<span style="font-size:0.75rem; color:var(--accent-terracotta); font-weight:700;">● 使用中</span>` : `<button type="button" class="mini-btn">切換</button>`}
+      <div class="account-actions-right" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+        ${isCurrent ? `<span style="font-size:0.75rem; color:var(--accent-terracotta); font-weight:700;">● 使用中</span>` : `<button type="button" class="mini-btn btn-switch-user">切換</button>`}
+        ${u.role !== "leader" ? `<button type="button" class="mini-btn btn-make-leader" title="換此人出國時設為團主" style="color:#b45309; border-color:#fcd34d; background:#fffbeb;">👑 設為團主</button>` : `<span style="font-size:0.72rem; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px; font-weight:600;">出國團主</span>`}
+        ${canDelete ? `<button type="button" class="mini-btn danger btn-delete-user" title="刪除此團友" style="color:#c04e28; border-color:#f2baaa;">🗑️ 刪除</button>` : ""}
       </div>
     `;
 
+    // 更改為出國團主按鈕事件
+    const makeLeaderBtn = cardEl.querySelector(".btn-make-leader");
+    if (makeLeaderBtn) {
+      makeLeaderBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (confirm(`確定要將「${u.name}」更改為出國團主嗎？\n\n（換其他人出國採買時使用，將負責現場連線與採買確認，原團主將轉為團友身分）`)) {
+          setUserAsLeader(u.id);
+        }
+      });
+    }
+
+    // 團主刪除團友按鈕事件
+    const delBtn = cardEl.querySelector(".btn-delete-user");
+    if (delBtn) {
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const hasOrders = state.posts.some((p) => (p.orders || []).some((o) => o.userId === u.id));
+        const hasWishes = state.wishes.some((w) => w.userId === u.id);
+        let msg = `確定要刪除團友「${u.name}」這個帳號嗎？`;
+        if (hasOrders || hasWishes) {
+          msg = `⚠️ 團友「${u.name}」目前已有喊單或許願紀錄！\n確定要刪除此帳號嗎？（該團友的所有相關喊單與許願也將一併清理）`;
+        }
+        if (confirm(msg)) {
+          deleteUserAccount(u.id, u.name);
+        }
+      });
+    }
+
     cardEl.addEventListener("click", () => {
+      if (isCurrent) return;
       state.currentUserId = u.id;
       // 切換身分時一律將許願篩選器重設為 all，確保團主切換後能看見全體成員許願池
       currentWishFilter.userId = "all";
@@ -1903,6 +2021,80 @@ function openAccountModal() {
   });
 
   modal.classList.remove("hidden");
+}
+
+// 將指定成員更改為出國團主（換其他人出國時使用）
+function setUserAsLeader(userId) {
+  const targetUser = state.users.find((u) => u.id === userId);
+  if (!targetUser) return;
+
+  // 1. 將指定成員改為 leader，其餘團主轉為 member（明確當期主理人）
+  state.users.forEach((u) => {
+    if (u.id === userId) {
+      u.role = "leader";
+    } else if (u.role === "leader") {
+      u.role = "member";
+    }
+  });
+
+  // 2. 切換當前使用者身分為該出國團主
+  state.currentUserId = userId;
+  currentWishFilter.userId = "all";
+  const userSelect = document.getElementById("wishlistUserFilter");
+  if (userSelect) userSelect.value = "all";
+
+  // 3. 跨手機即時廣播
+  broadcastSyncEvent("UPDATE_USER_ROLE", {
+    userId,
+    userName: targetUser.name,
+    role: "leader",
+  });
+
+  saveGroupbuyState();
+  openAccountModal(); // 刷新彈窗內身分狀態
+  renderApp();
+  showToast(`👑 已成功將【${targetUser.name}】更改為出國團主！`);
+}
+
+// 團主執行刪除團友帳號
+function deleteUserAccount(userId, userName) {
+  // 1. 從 users 移除
+  state.users = state.users.filter((u) => u.id !== userId);
+
+  // 2. 記錄墓碑標記，防止雲端同步或重整時復活
+  if (!state.deletedUserIds) state.deletedUserIds = [];
+  if (!state.deletedUserIds.includes(userId)) {
+    state.deletedUserIds.push(userId);
+  }
+
+  // 3. 清理該用戶的許願
+  state.wishes = state.wishes.filter((w) => w.userId !== userId);
+
+  // 4. 清理該用戶在現場連線中的喊單
+  state.posts.forEach((p) => {
+    if (Array.isArray(p.orders)) {
+      p.orders = p.orders.filter((o) => o.userId !== userId);
+    }
+  });
+
+  // 5. 清理結算款項紀錄
+  if (state.payments && state.payments[userId]) {
+    delete state.payments[userId];
+  }
+
+  // 6. 若當前登入者恰好是被刪除的用戶（防呆），切換回團主
+  if (state.currentUserId === userId) {
+    const leader = state.users.find((u) => u.role === "leader") || state.users[0];
+    state.currentUserId = leader ? leader.id : "";
+  }
+
+  // 7. 跨手機廣播
+  broadcastSyncEvent("DELETE_USER", { userId, userName });
+
+  saveGroupbuyState();
+  openAccountModal(); // 重新渲染彈窗內帳號列表
+  renderApp();
+  showToast(`已成功刪除團友「${userName}」`);
 }
 
 // 通用照片選擇與壓縮預覽處理
