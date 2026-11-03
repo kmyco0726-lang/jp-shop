@@ -11,8 +11,8 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20261103_v2" />
-    <link rel="stylesheet" href="./groupbuy.css?v=20261103_v2" />
+    <link rel="stylesheet" href="./styles.css?v=20261103_v4" />
+    <link rel="stylesheet" href="./groupbuy.css?v=20261103_v4" />
   </head>
   <body>
     <div class="notebook-container groupbuy-app">
@@ -68,6 +68,11 @@
           <span class="tab-icon">🌟</span>
           <span class="tab-title">個人許願商品區</span>
           <span class="tab-badge" id="badgeWishCount">0</span>
+        </button>
+        <button type="button" class="tab-item highlight-tab" data-tab="shoppingList">
+          <span class="tab-icon">🛒</span>
+          <span class="tab-title">團主採買總清單</span>
+          <span class="tab-badge" id="badgeShoppingCount">0</span>
         </button>
         <button type="button" class="tab-item" data-tab="settlement">
           <span class="tab-icon">💰</span>
@@ -126,7 +131,37 @@
         </section>
       </main>
 
-      <!-- TAB 3: 回國金額分帳與統計 -->
+      <!-- TAB 3: 團主採買總清單 (Shopping Checklist) -->
+      <main id="tabShoppingList" class="tab-content hidden">
+        <section class="shopping-hero-card">
+          <div class="shopping-hero-head">
+            <div>
+              <h3>🛒 藥妝店現場採買總彙整</h3>
+              <p class="subtitle">自動統計全團「許願中」與「連線喊單」的商品總數量，在店裡照著清單拿貨即可！</p>
+            </div>
+            <div class="shopping-quick-actions">
+              <button type="button" id="btnCopyShoppingText" class="mini-btn">📋 複製採買清單純文字</button>
+            </div>
+          </div>
+          <!-- 採買進度條 -->
+          <div class="progress-box">
+            <div class="progress-info">
+              <span>採買進度：<strong id="shoppingProgressText">0 / 0 件 (0%)</strong></span>
+              <span id="shoppingRemainingText" style="color:var(--accent-terracotta); font-weight:700;">尚有 0 件待買</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="shoppingProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 採買清單卡片列表 (依商品彙整) -->
+        <section id="shoppingListContainer" class="shopping-items-list">
+          <!-- 動態渲染 -->
+        </section>
+      </main>
+
+      <!-- TAB 4: 回國金額分帳與統計 -->
       <main id="tabSettlement" class="tab-content hidden">
         <!-- 統計看板 -->
         <section class="summary-hero-card">
@@ -395,6 +430,6 @@
 
     <!-- 免費即時 WebSocket 通訊庫 -->
     <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
-    <script src="./groupbuy.js?v=20261103_v3"></script>
+    <script src="./groupbuy.js?v=20261103_v4"></script>
   </body>
 </html>

@@ -523,52 +523,142 @@
 /* 貼文底部操作工具列 */
 .post-action-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 8px;
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid #ebd9c5;
 }
 
+/* 強化版現場喊單按鈕區 (超醒目 +1 +2 CTA) */
+.order-cta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fbf5ed;
+  border: 1.5px dashed #e8c6b2;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.my-order-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #d96b43;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #c04e28;
+}
+
+.my-order-status-banner.is-bought-locked {
+  background: #f4f8f4;
+  border-color: #a4ceb2;
+  color: #27643b;
+}
+
+.locked-hint {
+  font-size: 0.72rem;
+  background: #e8ede8;
+  color: #27643b;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+  border: 1px solid #bed6c3;
+}
+
+.btn-delete-post {
+  background: transparent;
+  color: var(--ink-muted);
+  border: 1px solid #dcd0bc;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-post:hover {
+  background: #faeae6;
+  color: #c04e28;
+  border-color: #c04e28;
+}
+
 .order-buttons-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
 }
 
 .btn-call-order {
-  background: #f8efe4;
-  color: var(--accent-terracotta);
-  border: 1.5px solid var(--accent-terracotta);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--accent-terracotta);
+  color: #ffffff !important;
+  border: none;
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.84rem;
-  font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
   font-family: inherit;
+  font-weight: 800;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 3px 8px rgba(217, 107, 67, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* 主喊單按鈕 (+1)：大、醒目、主按鍵 */
+.btn-call-order.btn-order-plus1 {
+  flex: 3;
+  padding: 11px 18px;
+  font-size: 1.05rem;
+  letter-spacing: 0.5px;
+}
+
+/* 次喊單按鈕 (+2) */
+.btn-call-order.btn-order-plus2 {
+  flex: 1.2;
+  padding: 11px 12px;
+  font-size: 0.95rem;
+  background: #e27d58;
 }
 
 .btn-call-order:hover {
-  background: var(--accent-terracotta);
-  color: #fff;
-  transform: translateY(-1px);
+  background: #bf4d26;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(217, 107, 67, 0.45);
+}
+
+.btn-call-order:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 4px rgba(217, 107, 67, 0.25);
 }
 
 .btn-cancel-order {
   background: transparent;
   color: var(--ink-muted);
-  border: 1px solid #dec8b3;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.75rem;
+  border: 1px solid #d5c3af;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .btn-cancel-order:hover {
-  background: #fbf5ee;
+  background: #faeae6;
   color: #c04e28;
+  border-color: #c04e28;
+}
+
+.leader-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .btn-purchase-confirm {
@@ -576,12 +666,12 @@
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.82rem;
+  padding: 8px 14px;
+  font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 4px rgba(91, 140, 105, 0.2);
+  box-shadow: 0 2px 6px rgba(91, 140, 105, 0.25);
 }
 
 .btn-purchase-confirm:hover {
@@ -1220,6 +1310,241 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 0.86rem;
+}
+
+/* ==========================================================================
+   許願卡狀態 Badge (明確區分許願中與已購入，避免被團主動作按鈕誤導)
+   ========================================================================== */
+.wish-card-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.wish-status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wish-status-badge.pending {
+  background: #fdf3e2;
+  color: #b26a15;
+  border: 1px solid #f3d4a8;
+}
+
+.wish-status-badge.bought {
+  background: #e3f2e8;
+  color: #27643b;
+  border: 1px solid #a4ceb2;
+}
+
+/* ==========================================================================
+   TAB 3: 團主採買總清單 (Shopping Checklist) 專屬樣式
+   ========================================================================== */
+.shopping-hero-card {
+  background: #fdfaf3;
+  border: 1.5px solid #dec8b3;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.shopping-hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.shopping-hero-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--ink-main);
+}
+
+.progress-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 9px;
+  background: #e8ded2;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d96b43, #5b8c69);
+  border-radius: 99px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 採買清單卡片列表 */
+.shopping-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shopping-item-card {
+  background: var(--bg-card);
+  border: 1.5px solid #dec8b3;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.shopping-item-card:hover {
+  border-color: #cbaf94;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+}
+
+.shopping-item-card.is-done {
+  background: #f4f8f4;
+  border-color: #c7dec9;
+  opacity: 0.85;
+}
+
+.shopping-item-card.is-done .shopping-item-title {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+
+.shopping-left-col {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.shopping-check-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid #cfbeaa;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.shopping-item-card.is-done .shopping-check-btn {
+  background: var(--accent-sage);
+  border-color: var(--accent-sage);
+  color: #fff;
+}
+
+.shopping-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #eee;
+  flex-shrink: 0;
+}
+
+.shopping-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shopping-item-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink-main);
+  line-height: 1.35;
+}
+
+.shopping-members-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+.member-qty-pill {
+  background: #f0ede5;
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  color: var(--ink-main);
+  font-weight: 600;
+}
+
+.shopping-right-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.shopping-total-badge {
+  background: #fae4df;
+  border: 1px solid #f2baaa;
+  color: #c04e28;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+
+.shopping-item-card.is-done .shopping-total-badge {
+  background: #e2f0e6;
+  border-color: #b3d8bc;
+  color: #27643b;
+}
+
+.btn-mark-basket {
+  background: #fff;
+  border: 1px solid #cfbeaa;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-mark-basket:hover {
+  background: var(--bg-sub);
+  border-color: var(--accent-sage);
 }
 
 @media (max-width: 600px) {

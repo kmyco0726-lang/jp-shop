@@ -34,9 +34,9 @@ const DEFAULT_STATE = {
           userName: "小花",
           userAvatar: "🌸",
           qty: 1,
-          bought: true,
+          bought: false,
           boughtPriceYen: 980,
-          boughtAt: "2026-11-03 10:20",
+          boughtAt: null,
         },
         {
           id: "ord_2",
@@ -59,13 +59,13 @@ const DEFAULT_STATE = {
       userAvatar: "🌸",
       title: "DHC 速攻藍莓 20日分 (40粒)",
       qty: 1,
-      targetPriceYen: 1000,
+      targetPriceYen: null,
       note: "上班看電腦眼睛乾，希望能買 1 包！",
       imageUrl: "./IMG_8504.JPG",
-      status: "bought",
-      boughtPriceYen: 980,
-      boughtStore: "ダイコクドラッグ 道頓堀店",
-      fromPostId: "post_sample_1",
+      status: "pending",
+      boughtPriceYen: null,
+      boughtStore: null,
+      fromPostId: null,
       createdAt: "2026-11-02 21:00",
     },
     {
@@ -75,7 +75,7 @@ const DEFAULT_STATE = {
       userAvatar: "🍙",
       title: "EVE QUICK DX 頭痛藥 40錠",
       qty: 1,
-      targetPriceYen: 1800,
+      targetPriceYen: null,
       note: "藍金盒裝加強款，常偏頭痛必備",
       imageUrl: "./IMG_8508.JPG",
       status: "pending",
@@ -163,6 +163,7 @@ function renderApp() {
   renderHeaderUser();
   renderLivePosts();
   renderWishlist();
+  renderShoppingList();
   renderSettlement();
   updateBadgeCounts();
 }
@@ -192,10 +193,21 @@ function renderHeaderUser() {
 function updateBadgeCounts() {
   const liveCountEl = document.getElementById("badgeLiveCount");
   const wishCountEl = document.getElementById("badgeWishCount");
+  const shoppingCountEl = document.getElementById("badgeShoppingCount");
+
   if (liveCountEl) liveCountEl.textContent = state.posts.length;
   if (wishCountEl) {
     const pendingWishes = state.wishes.filter((w) => w.status === "pending").length;
     wishCountEl.textContent = pendingWishes;
+  }
+  if (shoppingCountEl) {
+    // 統計團主待採購總數量 (待採購許願 + 現場連線未採購喊單)
+    let totalPendingQty = 0;
+    state.wishes.filter((w) => w.status === "pending").forEach((w) => (totalPendingQty += w.qty || 1));
+    state.posts.forEach((p) => {
+      (p.orders || []).filter((o) => !o.bought).forEach((o) => (totalPendingQty += o.qty || 1));
+    });
+    shoppingCountEl.textContent = totalPendingQty;
   }
 }
 
@@ -255,7 +267,16 @@ function renderLivePosts() {
           <span>${escapeHtml(post.authorName)} 正在連線</span>
           <span class="post-time">${escapeHtml(post.createdAt || "")}</span>
         </div>
-        ${post.store ? `<span class="post-store-badge">📍 ${escapeHtml(post.store)}</span>` : ""}
+        <div style="display:flex; align-items:center; gap:6px;">
+          ${post.store ? `<span class="post-store-badge">📍 ${escapeHtml(post.store)}</span>` : ""}
+          ${
+            isLeader
+              ? `<button type="button" class="btn-delete-post" data-post-id="${post.id}" title="團主刪除此即時連線商品">
+                  🗑️ 刪除
+                </button>`
+              : ""
+          }
+        </div>
       </div>
 
       ${
@@ -302,30 +323,45 @@ function renderLivePosts() {
           </div>
         </div>
 
-        <!-- 操作工具列 -->
+        <!-- 操作工具列 (超醒目現場喊單 CTA) -->
         <div class="post-action-toolbar">
-          <div class="order-buttons-group">
-            <button type="button" class="btn-call-order btn-order-plus1" data-post-id="${post.id}" data-qty="1">
-              🙋 我要 +1
-            </button>
-            <button type="button" class="btn-call-order btn-order-plus2" data-post-id="${post.id}" data-qty="2">
-              +2
-            </button>
+          <div class="order-cta-box">
             ${
               myOrder
-                ? `<button type="button" class="btn-cancel-order btn-order-cancel" data-post-id="${post.id}">
-                    取消我的單
-                   </button>`
+                ? `
+              <div class="my-order-status-banner ${myOrder.bought ? "is-bought-locked" : ""}">
+                <span>
+                  ${myOrder.bought ? "🔒 團主現場已購入" : "✅ 你已喊單"} 
+                  <strong>${myOrder.qty} 件</strong> 
+                  ${myOrder.bought ? "(已買進菜籃✓)" : "(待買入)"}
+                </span>
+                ${
+                  !myOrder.bought
+                    ? `<button type="button" class="btn-cancel-order btn-order-cancel" data-post-id="${post.id}">✕ 取消喊單</button>`
+                    : `<span class="locked-hint" title="團主已在現場確認購入，團員無法取消喊單">不可取消</span>`
+                }
+              </div>
+            `
                 : ""
             }
+            <div class="order-buttons-group">
+              <button type="button" class="btn-call-order btn-order-plus1" data-post-id="${post.id}" data-qty="1">
+                🙋 我要 +1
+              </button>
+              <button type="button" class="btn-call-order btn-order-plus2" data-post-id="${post.id}" data-qty="2">
+                🔥 +2
+              </button>
+            </div>
           </div>
 
           ${
             isLeader
               ? `
-            <button type="button" class="btn-purchase-confirm btn-open-purchase-modal" data-post-id="${post.id}">
-              🛒 團主確認購入
-            </button>
+            <div class="leader-action-row">
+              <button type="button" class="btn-purchase-confirm btn-open-purchase-modal" data-post-id="${post.id}">
+                🛒 團主確認購入此貼文
+              </button>
+            </div>
           `
               : ""
           }
@@ -354,6 +390,14 @@ function renderLivePosts() {
     if (cancelBtn) {
       cancelBtn.addEventListener("click", () => {
         handleCancelOrder(post.id);
+      });
+    }
+
+    // 綁定團主刪除此貼文
+    const delPostBtn = postEl.querySelector(".btn-delete-post");
+    if (delPostBtn) {
+      delPostBtn.addEventListener("click", () => {
+        handleDeleteLivePost(post.id);
       });
     }
 
@@ -404,7 +448,7 @@ function handlePlaceOrder(postId, addQty) {
   showToast(`🎉 ${user.name} 已成功喊單 +${addQty}！`);
 }
 
-// 取消當前成員喊單
+// 取消當前成員喊單 (嚴格防護：若團主已在現場確認購入，團員無法取消！)
 function handleCancelOrder(postId) {
   const post = state.posts.find((p) => p.id === postId);
   if (!post || !post.orders) return;
@@ -413,7 +457,7 @@ function handleCancelOrder(postId) {
   const idx = post.orders.findIndex((o) => o.userId === user.id);
   if (idx !== -1) {
     if (post.orders[idx].bought) {
-      alert("⚠️ 此品項團主已在現場確認購入，若需取消請先與團主聯繫！");
+      alert("⚠️ 此商品團主已在現場確認購入並放入購物籃，團員無法取消喊單！如需協調請直接向團主反映。");
       return;
     }
     const removedOrder = post.orders[idx];
@@ -421,9 +465,49 @@ function handleCancelOrder(postId) {
     broadcastSyncEvent("CHANGE_ORDER", { postId, order: { ...removedOrder, qty: 0, removed: true } });
     saveGroupbuyState();
     renderLivePosts();
+    renderShoppingList();
     renderSettlement();
     showToast(`已取消 ${user.name} 的喊單`);
   }
+}
+
+// 團主刪除即時連線貼文 (若已有人喊單需彈窗詳細提醒)
+function handleDeleteLivePost(postId) {
+  const post = state.posts.find((p) => p.id === postId);
+  if (!post) return;
+
+  const orders = post.orders || [];
+  const totalQty = orders.reduce((sum, o) => sum + (o.qty || 0), 0);
+  const memberNames = [...new Set(orders.map((o) => `${o.userAvatar || ""}${o.userName}`))];
+
+  // 若已有人喊單，彈出詳細警告提醒
+  if (orders.length > 0 && totalQty > 0) {
+    const warningMsg =
+      `⚠️【警告】此商品目前已有團友喊單！\n\n` +
+      `📦 喊單總計：共 ${totalQty} 件\n` +
+      `👥 喊單成員：${memberNames.join("、")}\n\n` +
+      `若刪除此即時連線，上述成員的喊單紀錄將會一併被取消，且不會計入回國分帳！\n\n` +
+      `確定仍要刪除「${post.title}」這篇現場連線嗎？`;
+
+    const confirmed = confirm(warningMsg);
+    if (!confirmed) return;
+  } else {
+    const confirmed = confirm(`確定要刪除「${post.title}」這篇現場連線貼文嗎？`);
+    if (!confirmed) return;
+  }
+
+  // 執行刪除貼文
+  state.posts = state.posts.filter((p) => p.id !== postId);
+
+  // 跨手機即時廣播刪除事件
+  broadcastSyncEvent("DELETE_POST", {
+    postId,
+    postTitle: post.title,
+  });
+
+  saveGroupbuyState();
+  renderApp();
+  showToast(`已成功刪除連線商品「${post.title}」`);
 }
 
 // 打開確認購入彈窗
@@ -604,19 +688,24 @@ function renderWishlist() {
         }
       </div>
 
-      <div class="wish-author-row">
-        <span>${escapeHtml(wish.userAvatar || "👤")}</span>
-        <strong>${escapeHtml(wish.userName || "成員")}</strong>
-        <span>・${escapeHtml(wish.createdAt || "")}</span>
+      <div class="wish-card-top-bar">
+        <div class="wish-author-row">
+          <span>${escapeHtml(wish.userAvatar || "👤")}</span>
+          <strong>${escapeHtml(wish.userName || "成員")}</strong>
+          <span>・${escapeHtml(wish.createdAt || "")}</span>
+        </div>
+        <span class="wish-status-badge ${isBought ? "bought" : "pending"}">
+          ${isBought ? "✅ 現場已購入" : "⏳ 待採購(許願中)"}
+        </span>
       </div>
 
       <h4 class="wish-title">${escapeHtml(wish.title)}</h4>
 
       <div class="wish-meta-row">
-        <span class="wish-qty">數量：<strong>${wish.qty || 1} 件</strong></span>
+        <span class="wish-qty">想買數量：<strong>${wish.qty || 1} 件</strong></span>
         ${
           isBought
-            ? `<span class="wish-price">購入價：¥${(wish.boughtPriceYen || 0).toLocaleString("ja-JP")}</span>`
+            ? `<span class="wish-price">購入金額：¥${(wish.boughtPriceYen || 0).toLocaleString("ja-JP")}</span>`
             : ""
         }
       </div>
@@ -634,7 +723,7 @@ function renderWishlist() {
           ${
             isLeader && !isBought
               ? `<button type="button" class="btn-wish-action bought-toggle btn-mark-wish-bought" data-wish-id="${wish.id}">
-                  ✅ 現場已買到
+                  🛒 標記此項已買到
                 </button>`
               : ""
           }
@@ -716,13 +805,235 @@ function handleMarkWishBought(wishId) {
   wish.boughtPriceYen = priceYen;
   wish.boughtStore = "日本實體藥妝店";
 
+  // 即時廣播給所有成員手機同步為已購入
+  broadcastSyncEvent("CONFIRM_PURCHASE", {
+    postId: null,
+    boughtOrderIds: [],
+    wishId: wish.id,
+    postTitle: wish.title,
+    boughtPriceYen: priceYen,
+  });
+
   saveGroupbuyState();
   renderApp();
   showToast(`🎉 已成功將「${wish.title}」標記為已購入！已計入分帳！`);
 }
 
 // ==========================================
-// TAB 3: 回國分帳結算 (Settlement)
+// 團主採買總清單模組 (Shopping Checklist)
+// 自動統計全團所有成員「待採購許願」+「連線喊單」的商品總數量
+// ==========================================
+function renderShoppingList() {
+  const container = document.getElementById("shoppingListContainer");
+  const progressText = document.getElementById("shoppingProgressText");
+  const remainingText = document.getElementById("shoppingRemainingText");
+  const progressBar = document.getElementById("shoppingProgressBar");
+  if (!container) return;
+
+  // 1. 建立商品彙整 Map (key: 乾淨商品名稱)
+  const itemMap = new Map();
+
+  function getOrCreateGroup(title, sampleImg) {
+    const key = title.trim().toLowerCase();
+    if (!itemMap.has(key)) {
+      itemMap.set(key, {
+        key,
+        title: title.trim(),
+        imageUrl: sampleImg || "",
+        totalQty: 0,
+        boughtQty: 0,
+        pendingQty: 0,
+        requesters: [], // { name, avatar, qty, type, bought, refObj }
+      });
+    }
+    const group = itemMap.get(key);
+    if (!group.imageUrl && sampleImg) group.imageUrl = sampleImg;
+    return group;
+  }
+
+  // A. 彙整全體許願商品
+  state.wishes.forEach((w) => {
+    const group = getOrCreateGroup(w.title, w.imageUrl);
+    const qty = w.qty || 1;
+    group.totalQty += qty;
+    if (w.status === "bought") {
+      group.boughtQty += qty;
+    } else {
+      group.pendingQty += qty;
+    }
+    group.requesters.push({
+      id: w.id,
+      name: w.userName || "團員",
+      avatar: w.userAvatar || "🌸",
+      qty,
+      type: "許願",
+      bought: w.status === "bought",
+      ref: w,
+      sourceType: "wish",
+    });
+  });
+
+  // B. 彙整現場連線貼文中的所有喊單
+  state.posts.forEach((p) => {
+    (p.orders || []).forEach((o) => {
+      const group = getOrCreateGroup(p.title, p.imageUrl);
+      const qty = o.qty || 1;
+      group.totalQty += qty;
+      if (o.bought) {
+        group.boughtQty += qty;
+      } else {
+        group.pendingQty += qty;
+      }
+      group.requesters.push({
+        id: o.id,
+        name: o.userName || "團員",
+        avatar: o.userAvatar || "🌸",
+        qty,
+        type: "連線喊單",
+        bought: !!o.bought,
+        ref: o,
+        post: p,
+        sourceType: "order",
+      });
+    });
+  });
+
+  // 計算採買總進度
+  const groups = Array.from(itemMap.values());
+  let grandTotal = 0;
+  let grandBought = 0;
+  groups.forEach((g) => {
+    grandTotal += g.totalQty;
+    grandBought += g.boughtQty;
+  });
+
+  const grandPending = grandTotal - grandBought;
+  const percent = grandTotal > 0 ? Math.round((grandBought / grandTotal) * 100) : 0;
+
+  if (progressText) progressText.textContent = `${grandBought} / ${grandTotal} 件 (${percent}%)`;
+  if (remainingText) remainingText.textContent = `尚有 ${grandPending} 件待採購`;
+  if (progressBar) progressBar.style.width = `${percent}%`;
+
+  container.innerHTML = "";
+  if (groups.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 40px 10px; color: var(--ink-muted);">
+        <div style="font-size: 2.5rem; margin-bottom: 8px;">🛒</div>
+        <p>目前尚無待採購項目</p>
+        <p style="font-size:0.8rem;">團員送出許願或在現場貼文按 +1 後，採買總清單會自動在此彙整！</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 排序：尚未買齊的排在前面，已買齊的排在後面
+  groups.sort((a, b) => {
+    const aDone = a.pendingQty === 0;
+    const bDone = b.pendingQty === 0;
+    if (aDone && !bDone) return 1;
+    if (!aDone && bDone) return -1;
+    return b.pendingQty - a.pendingQty;
+  });
+
+  groups.forEach((g) => {
+    const isDone = g.pendingQty === 0;
+    const cardEl = document.createElement("div");
+    cardEl.className = `shopping-item-card ${isDone ? "is-done" : ""}`;
+
+    const requestersHtml = g.requesters
+      .map(
+        (r) => `
+        <span class="member-qty-pill" title="${escapeHtml(r.type)}">
+          ${escapeHtml(r.avatar)} ${escapeHtml(r.name)} <strong>x${r.qty}</strong>
+          ${r.bought ? `<span style="color:#27643b; font-weight:700;">✓</span>` : ""}
+        </span>
+      `
+      )
+      .join("");
+
+    cardEl.innerHTML = `
+      <div class="shopping-left-col">
+        <button type="button" class="shopping-check-btn" title="${isDone ? "點擊改回未採購" : "點擊標記全數買到了"}">
+          ${isDone ? "✓" : ""}
+        </button>
+        ${
+          g.imageUrl
+            ? `<img src="${escapeHtml(g.imageUrl)}" alt="${escapeHtml(g.title)}" class="shopping-thumb" />`
+            : `<div class="shopping-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.4rem;">🛍️</div>`
+        }
+        <div class="shopping-item-info">
+          <div class="shopping-item-title">${escapeHtml(g.title)}</div>
+          <div class="shopping-members-tags">
+            ${requestersHtml}
+          </div>
+        </div>
+      </div>
+
+      <div class="shopping-right-col">
+        <div class="shopping-total-badge">
+          ${isDone ? `已購齊 ${g.totalQty} 件` : `需採買 ${g.pendingQty} 件`}
+        </div>
+        <button type="button" class="btn-mark-basket btn-toggle-group-bought">
+          ${isDone ? "↩ 移回待買" : "🛒 整批入袋"}
+        </button>
+      </div>
+    `;
+
+    // 勾選按鈕與整批入袋按鈕
+    const checkBtn = cardEl.querySelector(".shopping-check-btn");
+    const toggleBtn = cardEl.querySelector(".btn-toggle-group-bought");
+
+    const handleToggle = () => {
+      toggleGroupBoughtStatus(g, !isDone);
+    };
+
+    if (checkBtn) checkBtn.addEventListener("click", handleToggle);
+    if (toggleBtn) toggleBtn.addEventListener("click", handleToggle);
+
+    container.appendChild(cardEl);
+  });
+}
+
+// 團主在採買清單上一鍵切換整批商品購買狀態
+function toggleGroupBoughtStatus(group, targetBought) {
+  let defaultPrice = 980;
+  if (targetBought) {
+    const inputPrice = prompt(`【${group.title}】共 ${group.pendingQty} 件\n請輸入實際現場購入含稅日圓單價：`, defaultPrice);
+    if (inputPrice === null) return;
+    defaultPrice = parseInt(inputPrice, 10) || defaultPrice;
+  }
+
+  // 1. 更新所有許願
+  group.requesters.forEach((r) => {
+    if (r.sourceType === "wish") {
+      r.ref.status = targetBought ? "bought" : "pending";
+      r.ref.boughtPriceYen = targetBought ? defaultPrice : null;
+      r.ref.boughtStore = targetBought ? "日本現場藥妝店" : null;
+    } else if (r.sourceType === "order") {
+      r.ref.bought = targetBought;
+      r.ref.boughtPriceYen = targetBought ? defaultPrice : null;
+      if (targetBought && r.post) {
+        syncOrderToWishlistBought(r.ref, r.post);
+      }
+    }
+  });
+
+  // 2. 跨手機廣播同步事件
+  broadcastSyncEvent("CONFIRM_PURCHASE", {
+    postTitle: group.title,
+    boughtPriceYen: defaultPrice,
+    isRevert: !targetBought,
+    allBought: targetBought,
+    requesterIds: group.requesters.map((r) => r.id),
+  });
+
+  saveGroupbuyState();
+  renderApp();
+  showToast(targetBought ? `🎉 已將「${group.title}」標記為全數購入入袋！` : `已將「${group.title}」移回待採購清單`);
+}
+
+// ==========================================
+// TAB 4: 回國分帳結算 (Settlement)
 // ==========================================
 function renderSettlement() {
   const container = document.getElementById("memberBillsContainer");
@@ -930,9 +1241,16 @@ function bindGlobalEvents() {
       document.querySelectorAll(".tab-content").forEach((c) => c.classList.add("hidden"));
       if (tabTarget === "liveStream") document.getElementById("tabLiveStream").classList.remove("hidden");
       if (tabTarget === "wishlist") document.getElementById("tabWishlist").classList.remove("hidden");
+      if (tabTarget === "shoppingList") document.getElementById("tabShoppingList").classList.remove("hidden");
       if (tabTarget === "settlement") document.getElementById("tabSettlement").classList.remove("hidden");
     });
   });
+
+  // 複製採買總清單純文字
+  const btnCopyShopping = document.getElementById("btnCopyShoppingText");
+  if (btnCopyShopping) {
+    btnCopyShopping.addEventListener("click", copyShoppingListText);
+  }
 
   // 關閉 Modal 按鈕 (共用)
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
@@ -1625,6 +1943,46 @@ function showToast(msg) {
   toast._timer = setTimeout(() => {
     toast.classList.add("hidden");
   }, 2800);
+}
+
+// 產生並複製採買總清單純文字
+function copyShoppingListText() {
+  const itemMap = new Map();
+  state.wishes.forEach((w) => {
+    const key = w.title.trim();
+    if (!itemMap.has(key)) itemMap.set(key, { title: key, pending: 0, bought: 0, users: [] });
+    const g = itemMap.get(key);
+    if (w.status === "bought") g.bought += w.qty || 1;
+    else g.pending += w.qty || 1;
+    g.users.push(`${w.userAvatar || "🌸"} ${w.userName} x${w.qty || 1}${w.status === "bought" ? "(已購✓)" : ""}`);
+  });
+
+  state.posts.forEach((p) => {
+    (p.orders || []).forEach((o) => {
+      const key = p.title.trim();
+      if (!itemMap.has(key)) itemMap.set(key, { title: key, pending: 0, bought: 0, users: [] });
+      const g = itemMap.get(key);
+      if (o.bought) g.bought += o.qty || 1;
+      else g.pending += o.qty || 1;
+      g.users.push(`${o.userAvatar || "🍙"} ${o.userName} x${o.qty || 1}${o.bought ? "(已購✓)" : ""}`);
+    });
+  });
+
+  let lines = [];
+  lines.push(`🛒【日本藥妝店現場採買總彙整清單】`);
+  lines.push(`================================`);
+  let idx = 1;
+  let totalPendingCount = 0;
+  itemMap.forEach((g) => {
+    const isDone = g.pending === 0;
+    lines.push(`${idx++}. [${isDone ? "X" : " "}] ${g.title} (需買 ${g.pending} 件 / 總需求 ${g.pending + g.bought} 件)`);
+    lines.push(`   成員細項：${g.users.join("、")}`);
+    totalPendingCount += g.pending;
+  });
+  lines.push(`================================`);
+  lines.push(`尚有 ${totalPendingCount} 件待採購。`);
+
+  copyTextToClipboard(lines.join("\n"), "📋 已成功複製採買總清單文字！");
 }
 
 function escapeHtml(str) {
